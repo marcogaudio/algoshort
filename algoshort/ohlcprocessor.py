@@ -217,20 +217,20 @@ class OHLCProcessor:
         return normalized
     
     def _calculate_relative(
-        self, 
-        df: pd.DataFrame, 
-        _o: str, 
-        _h: str, 
-        _l: str, 
-        _c: str, 
-        bm_df: pd.DataFrame, 
-        bm_col: str, 
-        dgt: int, 
+        self,
+        df: pd.DataFrame,
+        _o: str,
+        _h: str,
+        _l: str,
+        _c: str,
+        bm_df: pd.DataFrame,
+        bm_col: str,
+        dgt: int,
         rebase: bool = True
     ) -> pd.DataFrame:
         """
         Internal helper to calculate relative OHLC prices against benchmark.
-        
+
         Args:
             df: Normalized primary DataFrame with OHLC data.
             _o: Name of 'open' column in df.
@@ -244,22 +244,31 @@ class OHLCProcessor:
 
         Returns:
             DataFrame with original columns plus relative price columns (r-prefixed).
-            
+
         Raises:
             ValueError: If benchmark rebasing fails or division by zero occurs.
         """
         # Work on copies to preserve inputs
         working_df = df.copy()
         benchmark = bm_df.copy()
-        
+
+        # Normalize date columns to remove timezone info for consistent merging
+        # This handles cases where stock and benchmark have different timezone types
+        if pd.api.types.is_datetime64_any_dtype(working_df['date']):
+            if hasattr(working_df['date'].dt, 'tz') and working_df['date'].dt.tz is not None:
+                working_df['date'] = working_df['date'].dt.tz_localize(None)
+        if pd.api.types.is_datetime64_any_dtype(benchmark['date']):
+            if hasattr(benchmark['date'].dt, 'tz') and benchmark['date'].dt.tz is not None:
+                benchmark['date'] = benchmark['date'].dt.tz_localize(None)
+
         # Rename benchmark column for merging
         benchmark = benchmark.rename(columns={bm_col: 'bm'})
-        
+
         # Merge on date
         merged_df = pd.merge(
-            working_df, 
-            benchmark[['date', 'bm']], 
-            how='left', 
+            working_df,
+            benchmark[['date', 'bm']],
+            how='left',
             on='date'
         )
         
