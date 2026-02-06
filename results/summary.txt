@@ -1,0 +1,3 @@
+Italian Stock Analysis Summary
+Generated: 2026-02-06 22:14:03
+Tickers processed: 1
