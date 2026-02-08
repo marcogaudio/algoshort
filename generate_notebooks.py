@@ -723,7 +723,7 @@ def create_notebook_template() -> dict:
                     "from algoshort.position_sizing import PositionSizing, run_position_sizing_parallel\n",
                     "\n",
                     "sizer = PositionSizing(\n",
-                    "    tolerance=-0.10, mn=-0.0025, mx=-0.05,\n",
+                    "    tolerance=-0.20, mn=-0.20, mx=-0.45,\n",
                     "    equal_weight=0.05, avg=0.03, lot=1,\n",
                     "    initial_capital=INITIAL_CAPITAL\n",
                     ")\n",
