@@ -43,19 +43,19 @@ FC_DIST_PCT = 0.05
 FC_R_VOL = 1.0
 
 # =============================================================================
-# STOP LOSS
+# STOP LOSS (Wider stops for aggressive profile)
 # =============================================================================
 STOP_LOSS_ATR_WINDOW = 14
-STOP_LOSS_ATR_MULTIPLIER = 2.0
+STOP_LOSS_ATR_MULTIPLIER = 2.5   # Wider stops - less whipsaw, more risk
 
 # =============================================================================
-# POSITION SIZING
+# POSITION SIZING (Aggressive Profile)
 # =============================================================================
-POSITION_TOLERANCE = -0.20       # Max drawdown tolerance (20%)
-POSITION_MIN_RISK = -0.20        # Min risk per trade (20%)
-POSITION_MAX_RISK = -0.45        # Max risk per trade (45%)
-POSITION_EQUAL_WEIGHT = 0.05     # Equal weight per position (5%)
-POSITION_AVG = 0.03              # Average position size (3%)
+POSITION_TOLERANCE = -0.35       # Max drawdown tolerance (35%) - accept larger drawdowns
+POSITION_MIN_RISK = -0.25        # Min risk per trade (25%)
+POSITION_MAX_RISK = -0.60        # Max risk per trade (60%) - allow larger positions
+POSITION_EQUAL_WEIGHT = 0.10     # Equal weight per position (10%) - larger allocations
+POSITION_AVG = 0.06              # Average position size (6%)
 POSITION_LOT = 1                 # Lot size
 
 # =============================================================================
