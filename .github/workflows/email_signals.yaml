@@ -93,14 +93,14 @@ jobs:
       - name: Send email
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp-mail.outlook.com
-          server_port: 587
+          server_address: smtp.gmail.com
+          server_port: 465
           secure: true
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
           subject: "🎯 Daily Trading Signals - ${{ github.event.repository.name }} - $(date '+%Y-%m-%d')"
           to: ${{ secrets.EMAIL_RECIPIENT }}
-          from: ${{ secrets.EMAIL_USERNAME }}
+          from: ${{ secrets.GMAIL_USERNAME }}
           html_body: file://email_body.html
           attachments: results/top_trades_recommendation.csv
 
