@@ -21,6 +21,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from config import (
+    BENCHMARK, START_DATE, INITIAL_CAPITAL,
+    BREAKOUT_WINDOWS, TURTLE_ENTRY_WINDOW, TURTLE_EXIT_WINDOW,
+    MA_SHORT, MA_MEDIUM, MA_LONG,
+    FC_LEVEL, FC_VOLATILITY_WINDOW, FC_THRESHOLD, FC_RETRACEMENT, FC_DGT, FC_D_VOL, FC_DIST_PCT, FC_R_VOL,
+    STOP_LOSS_ATR_WINDOW, STOP_LOSS_ATR_MULTIPLIER,
+    POSITION_TOLERANCE, POSITION_MIN_RISK, POSITION_MAX_RISK, POSITION_EQUAL_WEIGHT, POSITION_AVG, POSITION_LOT
+)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -93,9 +102,9 @@ def create_notebook_template() -> dict:
                     "# TICKER CONFIGURATION\n",
                     "# =============================================================================\n",
                     "TICKER = \"{TICKER}\"\n",
-                    "BENCHMARK = \"FTSEMIB.MI\"\n",
-                    "START_DATE = \"2024-01-01\"\n",
-                    "INITIAL_CAPITAL = 10000"
+                    "BENCHMARK = \"{BENCHMARK}\"\n",
+                    "START_DATE = \"{START_DATE}\"\n",
+                    "INITIAL_CAPITAL = {INITIAL_CAPITAL}"
                 ]
             },
             # Cell 3: Imports Markdown
@@ -377,7 +386,7 @@ def create_notebook_template() -> dict:
                     "from algoshort.regime_bo import RegimeBO\n",
                     "\n",
                     "regime_bo = RegimeBO(ohlc_stock=df)\n",
-                    "breakout_windows = [20, 50, 100]\n",
+                    "breakout_windows = {BREAKOUT_WINDOWS}\n",
                     "\n",
                     "print(\"Generating Breakout Signals:\")\n",
                     "print(\"=\" * 60)\n",
@@ -404,11 +413,11 @@ def create_notebook_template() -> dict:
                     "print(\"\\nGenerating Turtle Trader Signals:\")\n",
                     "print(\"=\" * 60)\n",
                     "\n",
-                    "df = regime_bo.compute_regime(regime_type='turtle', window=50, fast_window=20, relative=True, inplace=True)\n",
+                    "df = regime_bo.compute_regime(regime_type='turtle', window={TURTLE_ENTRY_WINDOW}, fast_window={TURTLE_EXIT_WINDOW}, relative=True, inplace=True)\n",
                     "\n",
-                    "signal_col = 'rtt_5020'\n",
+                    "signal_col = 'rtt_{TURTLE_ENTRY_WINDOW}{TURTLE_EXIT_WINDOW}'\n",
                     "counts = df[signal_col].value_counts().to_dict()\n",
-                    "print(f\"\\n  rtt_5020 (Slow=50, Fast=20):\")\n",
+                    "print(f\"\\n  rtt_{TURTLE_ENTRY_WINDOW}{TURTLE_EXIT_WINDOW} (Slow={TURTLE_ENTRY_WINDOW}, Fast={TURTLE_EXIT_WINDOW}):\")\n",
                     "print(f\"    Long (1):   {counts.get(1, 0):>5} bars ({counts.get(1, 0)/len(df)*100:.1f}%)\")\n",
                     "print(f\"    Neutral (0): {counts.get(0, 0):>5} bars ({counts.get(0, 0)/len(df)*100:.1f}%)\")\n",
                     "print(f\"    Short (-1): {counts.get(-1, 0):>5} bars ({counts.get(-1, 0)/len(df)*100:.1f}%)\")"
@@ -427,7 +436,7 @@ def create_notebook_template() -> dict:
                     "from algoshort.regime_ma import TripleMACrossoverRegime\n",
                     "\n",
                     "regime_ma = TripleMACrossoverRegime(ohlc_stock=df)\n",
-                    "ma_params = {'short': 50, 'medium': 100, 'long': 150}\n",
+                    "ma_params = {'short': {MA_SHORT}, 'medium': {MA_MEDIUM}, 'long': {MA_LONG}}\n",
                     "\n",
                     "print(\"\\nGenerating MA Crossover Signals:\")\n",
                     "print(\"=\" * 60)\n",
@@ -467,8 +476,8 @@ def create_notebook_template() -> dict:
                     "print(\"=\" * 60)\n",
                     "\n",
                     "df = regime_fc.compute_regime(\n",
-                    "    relative=True, lvl=3, vlty_n=63, threshold=0.05,\n",
-                    "    dgt=3, d_vol=1, dist_pct=0.05, retrace_pct=0.05, r_vol=1.0\n",
+                    "    relative=True, lvl={FC_LEVEL}, vlty_n={FC_VOLATILITY_WINDOW}, threshold={FC_THRESHOLD},\n",
+                    "    dgt={FC_DGT}, d_vol={FC_D_VOL}, dist_pct={FC_DIST_PCT}, retrace_pct={FC_RETRACEMENT}, r_vol={FC_R_VOL}\n",
                     ")\n",
                     "\n",
                     "if 'rrg' in df.columns:\n",
@@ -682,7 +691,7 @@ def create_notebook_template() -> dict:
                     "print(\"=\" * 60)\n",
                     "\n",
                     "for signal in signal_columns:\n",
-                    "    df = sl_calc.atr_stop_loss(signal=signal, window=14, multiplier=2.0)\n",
+                    "    df = sl_calc.atr_stop_loss(signal=signal, window={STOP_LOSS_ATR_WINDOW}, multiplier={STOP_LOSS_ATR_MULTIPLIER})\n",
                     "    sl_calc.data = df\n",
                     "\n",
                     "sl_cols = [col for col in df.columns if col.endswith('_stop_loss')]\n",
@@ -723,17 +732,17 @@ def create_notebook_template() -> dict:
                     "from algoshort.position_sizing import PositionSizing, run_position_sizing_parallel\n",
                     "\n",
                     "sizer = PositionSizing(\n",
-                    "    tolerance=-0.20, mn=-0.20, mx=-0.45,\n",
-                    "    equal_weight=0.05, avg=0.03, lot=1,\n",
+                    "    tolerance={POSITION_TOLERANCE}, mn={POSITION_MIN_RISK}, mx={POSITION_MAX_RISK},\n",
+                    "    equal_weight={POSITION_EQUAL_WEIGHT}, avg={POSITION_AVG}, lot={POSITION_LOT},\n",
                     "    initial_capital=INITIAL_CAPITAL\n",
                     ")\n",
                     "\n",
                     "print(f\"Position Sizing Configuration:\")\n",
                     "print(\"=\" * 60)\n",
                     "print(f\"  Initial Capital: {INITIAL_CAPITAL:,}\")\n",
-                    "print(f\"  Equal Weight: 5% per position\")\n",
-                    "print(f\"  Risk Range: 0.25% - 5% per trade\")\n",
-                    "print(f\"  Max Drawdown Tolerance: 10%\")\n",
+                    "print(f\"  Equal Weight: {int({POSITION_EQUAL_WEIGHT} * 100)}% per position\")\n",
+                    "print(f\"  Risk Range: {int(abs({POSITION_MIN_RISK}) * 100)}% - {int(abs({POSITION_MAX_RISK}) * 100)}% per trade\")\n",
+                    "print(f\"  Max Drawdown Tolerance: {int(abs({POSITION_TOLERANCE}) * 100)}%\")\n",
                     "\n",
                     "print(\"\\nCalculating Position Sizes...\")\n",
                     "\n",
@@ -930,12 +939,43 @@ def generate_notebook(ticker: str, template: dict, output_dir: str, execution_da
     import copy
     notebook = copy.deepcopy(template)
 
+    # Define all replacements from config
+    replacements = {
+        '{TICKER}': ticker,
+        '{DATE}': execution_date,
+        '{BENCHMARK}': BENCHMARK,
+        '{START_DATE}': START_DATE,
+        '{INITIAL_CAPITAL}': str(INITIAL_CAPITAL),
+        '{BREAKOUT_WINDOWS}': str(BREAKOUT_WINDOWS),
+        '{TURTLE_ENTRY_WINDOW}': str(TURTLE_ENTRY_WINDOW),
+        '{TURTLE_EXIT_WINDOW}': str(TURTLE_EXIT_WINDOW),
+        '{MA_SHORT}': str(MA_SHORT),
+        '{MA_MEDIUM}': str(MA_MEDIUM),
+        '{MA_LONG}': str(MA_LONG),
+        '{FC_LEVEL}': str(FC_LEVEL),
+        '{FC_VOLATILITY_WINDOW}': str(FC_VOLATILITY_WINDOW),
+        '{FC_THRESHOLD}': str(FC_THRESHOLD),
+        '{FC_RETRACEMENT}': str(FC_RETRACEMENT),
+        '{FC_DGT}': str(FC_DGT),
+        '{FC_D_VOL}': str(FC_D_VOL),
+        '{FC_DIST_PCT}': str(FC_DIST_PCT),
+        '{FC_R_VOL}': str(FC_R_VOL),
+        '{STOP_LOSS_ATR_WINDOW}': str(STOP_LOSS_ATR_WINDOW),
+        '{STOP_LOSS_ATR_MULTIPLIER}': str(STOP_LOSS_ATR_MULTIPLIER),
+        '{POSITION_TOLERANCE}': str(POSITION_TOLERANCE),
+        '{POSITION_MIN_RISK}': str(POSITION_MIN_RISK),
+        '{POSITION_MAX_RISK}': str(POSITION_MAX_RISK),
+        '{POSITION_EQUAL_WEIGHT}': str(POSITION_EQUAL_WEIGHT),
+        '{POSITION_AVG}': str(POSITION_AVG),
+        '{POSITION_LOT}': str(POSITION_LOT),
+    }
+
     for cell in notebook['cells']:
         if 'source' in cell:
             new_source = []
             for line in cell['source']:
-                line = line.replace('{TICKER}', ticker)
-                line = line.replace('{DATE}', execution_date)
+                for placeholder, value in replacements.items():
+                    line = line.replace(placeholder, value)
                 new_source.append(line)
             cell['source'] = new_source
 

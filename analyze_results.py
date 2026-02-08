@@ -21,6 +21,17 @@ from typing import List, Dict, Tuple
 import pandas as pd
 import numpy as np
 
+from config import (
+    START_DATE, BENCHMARK, INITIAL_CAPITAL,
+    BREAKOUT_WINDOWS, TURTLE_ENTRY_WINDOW, TURTLE_EXIT_WINDOW,
+    MA_SHORT, MA_MEDIUM, MA_LONG,
+    FC_LEVEL, FC_VOLATILITY_WINDOW, FC_THRESHOLD, FC_RETRACEMENT,
+    STOP_LOSS_ATR_WINDOW, STOP_LOSS_ATR_MULTIPLIER,
+    POSITION_TOLERANCE, POSITION_MIN_RISK, POSITION_MAX_RISK, POSITION_EQUAL_WEIGHT,
+    SCORE_WEIGHT_RETURN, SCORE_WEIGHT_DRAWDOWN, SCORE_WEIGHT_RISK_ADJ,
+    TOP_N_TRADES, get_config_summary
+)
+
 
 def load_all_results(results_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
@@ -183,9 +194,9 @@ def calculate_composite_score(
     # Composite score (weighted average)
     # 40% return, 30% drawdown, 30% risk-adjusted
     merged["Composite_Score"] = (
-        0.40 * merged["Return_Score"] +
-        0.30 * merged["DD_Score"] +
-        0.30 * merged["RAR_Score"]
+        SCORE_WEIGHT_RETURN * merged["Return_Score"] +
+        SCORE_WEIGHT_DRAWDOWN * merged["DD_Score"] +
+        SCORE_WEIGHT_RISK_ADJ * merged["RAR_Score"]
     )
 
     # Sort by composite score
@@ -197,7 +208,7 @@ def calculate_composite_score(
 def get_top_trades(
     equity_df: pd.DataFrame,
     signals_df: pd.DataFrame,
-    top_n: int = 10
+    top_n: int = TOP_N_TRADES
 ) -> pd.DataFrame:
     """
     Get top N trading opportunities.
@@ -234,8 +245,8 @@ def get_date_range(signals_df: pd.DataFrame) -> Tuple[str, str]:
     Note: The signals files only contain the latest row, so we use the
     configured start date and get the end date from the signals.
     """
-    # Start date matches the configuration in generate_notebooks.py
-    start_date = "2024-01-01"
+    # Start date from centralized config
+    start_date = START_DATE
 
     if signals_df.empty or "date" not in signals_df.columns:
         return start_date, "N/A"
@@ -273,52 +284,52 @@ def print_strategy_legend():
 
 def print_assumptions(signals_df: pd.DataFrame):
     """Print analysis assumptions and parameters."""
-    start_date, end_date = get_date_range(signals_df)
+    _, end_date = get_date_range(signals_df)
 
     print("\n" + "=" * 80)
     print("⚙️  ANALYSIS ASSUMPTIONS & PARAMETERS")
     print("=" * 80)
 
     print(f"\n  Data Period:")
-    print(f"    Start Date:       {start_date}")
+    print(f"    Start Date:       {START_DATE}")
     print(f"    End Date:         {end_date}")
-    print(f"    Benchmark:        FTSEMIB.MI (FTSE MIB Index)")
+    print(f"    Benchmark:        {BENCHMARK} (FTSE MIB Index)")
 
-    print(f"\n  Breakout Strategy (rbo_20, rbo_50, rbo_100):")
-    print(f"    Windows:          20, 50, 100 days")
+    print(f"\n  Breakout Strategy (rbo_{BREAKOUT_WINDOWS[0]}, rbo_{BREAKOUT_WINDOWS[1]}, rbo_{BREAKOUT_WINDOWS[2]}):")
+    print(f"    Windows:          {', '.join(map(str, BREAKOUT_WINDOWS))} days")
     print(f"    Logic:            LONG on N-day high breakout, SHORT on N-day low")
 
-    print(f"\n  Turtle Trader (rtt_5020):")
-    print(f"    Entry Window:     50 days (breakout)")
-    print(f"    Exit Window:      20 days (reversal)")
+    print(f"\n  Turtle Trader (rtt_{TURTLE_ENTRY_WINDOW}{TURTLE_EXIT_WINDOW}):")
+    print(f"    Entry Window:     {TURTLE_ENTRY_WINDOW} days (breakout)")
+    print(f"    Exit Window:      {TURTLE_EXIT_WINDOW} days (reversal)")
 
-    print(f"\n  Triple MA Crossover (rsma/rema_50100150):")
-    print(f"    Fast MA:          50 days")
-    print(f"    Medium MA:        100 days")
-    print(f"    Slow MA:          150 days")
+    print(f"\n  Triple MA Crossover (rsma/rema_{MA_SHORT}{MA_MEDIUM}{MA_LONG}):")
+    print(f"    Fast MA:          {MA_SHORT} days")
+    print(f"    Medium MA:        {MA_MEDIUM} days")
+    print(f"    Slow MA:          {MA_LONG} days")
     print(f"    Logic:            LONG when Fast > Medium > Slow")
 
     print(f"\n  Floor/Ceiling Regime (rrg):")
-    print(f"    Swing Level:      3")
-    print(f"    Volatility Window: 63 days")
-    print(f"    Threshold:        5%")
-    print(f"    Retracement:      5%")
+    print(f"    Swing Level:      {FC_LEVEL}")
+    print(f"    Volatility Window: {FC_VOLATILITY_WINDOW} days")
+    print(f"    Threshold:        {int(FC_THRESHOLD * 100)}%")
+    print(f"    Retracement:      {int(FC_RETRACEMENT * 100)}%")
 
     print(f"\n  Stop Loss:")
     print(f"    Method:           ATR-based")
-    print(f"    ATR Window:       14 days")
-    print(f"    Multiplier:       2.0x ATR")
+    print(f"    ATR Window:       {STOP_LOSS_ATR_WINDOW} days")
+    print(f"    Multiplier:       {STOP_LOSS_ATR_MULTIPLIER}x ATR")
 
     print(f"\n  Position Sizing:")
-    print(f"    Initial Capital:  €10,000")
-    print(f"    Equal Weight:     5% per position")
-    print(f"    Risk per Trade:   0.25% - 5%")
-    print(f"    Max Drawdown:     10% tolerance")
+    print(f"    Initial Capital:  €{INITIAL_CAPITAL:,}")
+    print(f"    Equal Weight:     {int(POSITION_EQUAL_WEIGHT * 100)}% per position")
+    print(f"    Risk per Trade:   {int(abs(POSITION_MIN_RISK) * 100)}% - {int(abs(POSITION_MAX_RISK) * 100)}%")
+    print(f"    Max Drawdown:     {int(abs(POSITION_TOLERANCE) * 100)}% tolerance")
 
     print(f"\n  Scoring Weights:")
-    print(f"    Total Return:     40%")
-    print(f"    Max Drawdown:     30%")
-    print(f"    Risk-Adj Return:  30%")
+    print(f"    Total Return:     {int(SCORE_WEIGHT_RETURN * 100)}%")
+    print(f"    Max Drawdown:     {int(SCORE_WEIGHT_DRAWDOWN * 100)}%")
+    print(f"    Risk-Adj Return:  {int(SCORE_WEIGHT_RISK_ADJ * 100)}%")
 
     print(f"\n  Signal Filter:      Only active signals (LONG=1 or SHORT=-1)")
     print()
@@ -373,7 +384,7 @@ def print_summary_report(
     # Best performing strategies overall
     print(f"\n🏆 TOP PERFORMING STRATEGIES (by Return)")
     print("-" * 40)
-    top_return = equity_df.nlargest(10, "Total Return")[["Ticker", "Signal", "Total Return", "Max Drawdown"]]
+    top_return = equity_df.nlargest(TOP_N_TRADES, "Total Return")[["Ticker", "Signal", "Total Return", "Max Drawdown"]]
     for i, row in top_return.iterrows():
         print(f"  {row['Ticker']:12} | {row['Signal']:15} | Return: {row['Total Return']:+.2f}% | MaxDD: {row['Max Drawdown']:.2f}%")
 
@@ -381,7 +392,7 @@ def print_summary_report(
     print(f"\n🛡️  BEST RISK-ADJUSTED STRATEGIES")
     print("-" * 40)
     equity_df["RAR"] = equity_df["Total Return"] / (abs(equity_df["Max Drawdown"]) + 0.01)
-    top_rar = equity_df.nlargest(10, "RAR")[["Ticker", "Signal", "Total Return", "Max Drawdown", "RAR"]]
+    top_rar = equity_df.nlargest(TOP_N_TRADES, "RAR")[["Ticker", "Signal", "Total Return", "Max Drawdown", "RAR"]]
     for i, row in top_rar.iterrows():
         print(f"  {row['Ticker']:12} | {row['Signal']:15} | Return: {row['Total Return']:+.2f}% | Sharpe-like: {row['RAR']:.2f}")
 
