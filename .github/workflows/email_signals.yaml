@@ -1,0 +1,113 @@
+name: Daily Trading Signals Email
+
+on:
+  schedule:
+    # Run daily at 10:30 AM UTC (11:30 AM CET / 12:30 PM CEST)
+    - cron: '30 10 * * 1-5'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  send-signals:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install .
+
+      - name: Download latest results
+        run: |
+          # Pull latest results from the repository
+          git pull origin main || true
+
+      - name: Run analysis script
+        id: analysis
+        run: |
+          # Run the analysis and capture output
+          python analyze_results.py --export > analysis_output.txt 2>&1
+
+          # Store the output for the email
+          echo "ANALYSIS_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+          cat analysis_output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create email body
+        run: |
+          cat << 'EOF' > email_body.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: 'Courier New', monospace; background-color: #1a1a2e; color: #eaeaea; padding: 20px; }
+              .container { max-width: 800px; margin: 0 auto; }
+              h1 { color: #4ecca3; border-bottom: 2px solid #4ecca3; padding-bottom: 10px; }
+              h2 { color: #00d9ff; margin-top: 30px; }
+              .signal-long { color: #00ff88; font-weight: bold; }
+              .signal-short { color: #ff6b6b; font-weight: bold; }
+              table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+              th, td { border: 1px solid #4ecca3; padding: 12px; text-align: left; }
+              th { background-color: #16213e; color: #4ecca3; }
+              tr:nth-child(even) { background-color: #1f1f3d; }
+              .disclaimer { font-size: 12px; color: #888; margin-top: 30px; padding: 15px; border: 1px solid #444; }
+              pre { background-color: #0f0f23; padding: 15px; overflow-x: auto; border-radius: 5px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>🎯 Daily Trading Signals - Italian Stock Market</h1>
+              <p>Generated: $(date '+%Y-%m-%d %H:%M:%S UTC')</p>
+
+              <h2>📊 Analysis Report</h2>
+              <pre>
+          EOF
+
+          cat analysis_output.txt >> email_body.html
+
+          cat << 'EOF' >> email_body.html
+              </pre>
+
+              <div class="disclaimer">
+                <strong>⚠️ DISCLAIMER:</strong> This is an automated analysis based on historical data and technical indicators.
+                Past performance does not guarantee future results. Always do your own research and manage risk appropriately.
+                This is not financial advice.
+              </div>
+
+              <p style="color: #666; font-size: 11px; margin-top: 20px;">
+                Sent automatically by <a href="https://github.com/${{ github.repository }}" style="color: #4ecca3;">algoshort</a> GitHub Actions
+              </p>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Send email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp-mail.outlook.com
+          server_port: 587
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🎯 Daily Trading Signals - ${{ github.event.repository.name }} - $(date '+%Y-%m-%d')"
+          to: ${{ secrets.EMAIL_RECIPIENT }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          html_body: file://email_body.html
+          attachments: results/top_trades_recommendation.csv
+
+      - name: Notify success
+        if: success()
+        run: echo "✅ Email sent successfully to the configured recipient"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Failed to send email. Check your SMTP credentials and secrets configuration."
