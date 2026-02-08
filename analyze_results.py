@@ -89,6 +89,9 @@ def analyze_best_strategies(equity_df: pd.DataFrame) -> pd.DataFrame:
     # Rename columns for consistency
     equity_df.columns = [c.strip() for c in equity_df.columns]
 
+    # Remove duplicates - keep only unique Ticker+Signal combinations
+    equity_df = equity_df.drop_duplicates(subset=["Ticker", "Signal"], keep="first")
+
     # Calculate risk-adjusted return (Return / |Max Drawdown|)
     # Higher is better
     equity_df["Risk_Adjusted_Return"] = equity_df["Total Return"] / (abs(equity_df["Max Drawdown"]) + 0.01)
@@ -163,6 +166,9 @@ def calculate_composite_score(
 
     if merged.empty:
         return pd.DataFrame()
+
+    # Remove duplicates - keep only unique Ticker+Signal combinations
+    merged = merged.drop_duplicates(subset=["Ticker", "Signal"], keep="first")
 
     # Calculate composite score
     # Normalize each factor to 0-1 range
@@ -341,6 +347,8 @@ def print_summary_report(
     top_trades: pd.DataFrame
 ):
     """Print a formatted summary report."""
+    # Remove duplicates - keep only unique Ticker+Signal combinations
+    equity_df = equity_df.drop_duplicates(subset=["Ticker", "Signal"], keep="first")
 
     print("=" * 80)
     print("ITALIAN STOCK MARKET - TRADING ANALYSIS SUMMARY")
