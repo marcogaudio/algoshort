@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Analyze trading results and suggest the top 5 best trades to perform.
+Analyze trading results and suggest the top 10 best trades to perform.
 
 This script:
 1. Reads all equity and signal CSV files from results/
 2. Analyzes strategy performance across all tickers
 3. Identifies current active signals
-4. Ranks and suggests the top 5 best trading opportunities
+4. Ranks and suggests the top 10 best trading opportunities
 
 Usage:
     python analyze_results.py [--results-dir results/] [--top N]
@@ -197,7 +197,7 @@ def calculate_composite_score(
 def get_top_trades(
     equity_df: pd.DataFrame,
     signals_df: pd.DataFrame,
-    top_n: int = 5
+    top_n: int = 10
 ) -> pd.DataFrame:
     """
     Get top N trading opportunities.
@@ -343,7 +343,7 @@ def print_summary_report(
     # Best performing strategies overall
     print(f"\n🏆 TOP PERFORMING STRATEGIES (by Return)")
     print("-" * 40)
-    top_return = equity_df.nlargest(5, "Total Return")[["Ticker", "Signal", "Total Return", "Max Drawdown"]]
+    top_return = equity_df.nlargest(10, "Total Return")[["Ticker", "Signal", "Total Return", "Max Drawdown"]]
     for i, row in top_return.iterrows():
         print(f"  {row['Ticker']:12} | {row['Signal']:15} | Return: {row['Total Return']:+.2f}% | MaxDD: {row['Max Drawdown']:.2f}%")
 
@@ -351,14 +351,14 @@ def print_summary_report(
     print(f"\n🛡️  BEST RISK-ADJUSTED STRATEGIES")
     print("-" * 40)
     equity_df["RAR"] = equity_df["Total Return"] / (abs(equity_df["Max Drawdown"]) + 0.01)
-    top_rar = equity_df.nlargest(5, "RAR")[["Ticker", "Signal", "Total Return", "Max Drawdown", "RAR"]]
+    top_rar = equity_df.nlargest(10, "RAR")[["Ticker", "Signal", "Total Return", "Max Drawdown", "RAR"]]
     for i, row in top_rar.iterrows():
         print(f"  {row['Ticker']:12} | {row['Signal']:15} | Return: {row['Total Return']:+.2f}% | Sharpe-like: {row['RAR']:.2f}")
 
     # Top trades recommendation
     if not top_trades.empty:
         print(f"\n" + "=" * 80)
-        print("🎯 TOP 5 RECOMMENDED TRADES")
+        print("🎯 TOP 10 RECOMMENDED TRADES")
         print("=" * 80)
         print("\nThese are the best trading opportunities based on:")
         print("  • Historical strategy performance (return)")
@@ -412,8 +412,8 @@ def main():
     parser.add_argument(
         "--top",
         type=int,
-        default=5,
-        help="Number of top trades to suggest (default: 5)"
+        default=10,
+        help="Number of top trades to suggest (default: 10)"
     )
     parser.add_argument(
         "--export",
