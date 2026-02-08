@@ -95,7 +95,7 @@ def create_notebook_template() -> dict:
                     "TICKER = \"{TICKER}\"\n",
                     "BENCHMARK = \"FTSEMIB.MI\"\n",
                     "START_DATE = \"2024-01-01\"\n",
-                    "INITIAL_CAPITAL = 2500"
+                    "INITIAL_CAPITAL = 10000"
                 ]
             },
             # Cell 3: Imports Markdown
