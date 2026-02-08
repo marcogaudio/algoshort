@@ -1,6 +1,7 @@
 # Italian Stock Market Tickers (FTSE MIB and Mid Cap)
 # One ticker per line
 # Lines starting with # are comments
+# Last updated: 2026-02-06
 
 # FTSE MIB (40 largest)
 A2A.MI
@@ -33,8 +34,8 @@ PST.MI
 RACE.MI
 REC.MI
 SRG.MI
-STLA.MI
-STM.MI
+STLAM.MI
+STMMI.MI
 TEN.MI
 TIT.MI
 TRN.MI
@@ -46,25 +47,18 @@ ANIM.MI
 BC.MI
 BAMI.MI
 CEM.MI
-CVAL.MI
 ELN.MI
 ENAV.MI
-EVK.MI
-GEST.MI
 GVS.MI
 IGV.MI
-IMA.MI
 JUVE.MI
 LUVE.MI
 MARR.MI
-MUTU.MI
 OVS.MI
 PIA.MI
 RWAY.MI
 SFER.MI
 SPM.MI
-SRS.MI
 TGYM.MI
-TOD.MI
 VLS.MI
 WIIT.MI
