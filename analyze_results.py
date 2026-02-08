@@ -278,18 +278,48 @@ def print_assumptions(signals_df: pd.DataFrame):
     print("\n" + "=" * 80)
     print("⚙️  ANALYSIS ASSUMPTIONS & PARAMETERS")
     print("=" * 80)
+
     print(f"\n  Data Period:")
     print(f"    Start Date:       {start_date}")
     print(f"    End Date:         {end_date}")
-    print(f"\n  Benchmark:          FTSEMIB.MI (FTSE MIB Index)")
+    print(f"    Benchmark:        FTSEMIB.MI (FTSE MIB Index)")
+
+    print(f"\n  Breakout Strategy (rbo_20, rbo_50, rbo_100):")
+    print(f"    Windows:          20, 50, 100 days")
+    print(f"    Logic:            LONG on N-day high breakout, SHORT on N-day low")
+
+    print(f"\n  Turtle Trader (rtt_5020):")
+    print(f"    Entry Window:     50 days (breakout)")
+    print(f"    Exit Window:      20 days (reversal)")
+
+    print(f"\n  Triple MA Crossover (rsma/rema_50100150):")
+    print(f"    Fast MA:          50 days")
+    print(f"    Medium MA:        100 days")
+    print(f"    Slow MA:          150 days")
+    print(f"    Logic:            LONG when Fast > Medium > Slow")
+
+    print(f"\n  Floor/Ceiling Regime (rrg):")
+    print(f"    Swing Level:      3")
+    print(f"    Volatility Window: 63 days")
+    print(f"    Threshold:        5%")
+    print(f"    Retracement:      5%")
+
+    print(f"\n  Stop Loss:")
+    print(f"    Method:           ATR-based")
+    print(f"    ATR Window:       14 days")
+    print(f"    Multiplier:       2.0x ATR")
+
     print(f"\n  Position Sizing:")
     print(f"    Initial Capital:  €10,000")
-    print(f"    Risk per Trade:   2%")
-    print(f"    Stop Loss:        ATR-based (2x ATR)")
+    print(f"    Equal Weight:     5% per position")
+    print(f"    Risk per Trade:   0.25% - 5%")
+    print(f"    Max Drawdown:     10% tolerance")
+
     print(f"\n  Scoring Weights:")
     print(f"    Total Return:     40%")
     print(f"    Max Drawdown:     30%")
     print(f"    Risk-Adj Return:  30%")
+
     print(f"\n  Signal Filter:      Only active signals (LONG=1 or SHORT=-1)")
     print()
 
