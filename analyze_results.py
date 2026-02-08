@@ -29,8 +29,9 @@ def load_all_results(results_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.D
     Returns:
         Tuple of (equity_df, signals_df, grid_search_df)
     """
-    # Load equity files
+    # Load equity files (exclude consolidated files to avoid duplicates)
     equity_files = glob.glob(os.path.join(results_dir, "*_equity.csv"))
+    equity_files = [f for f in equity_files if "consolidated" not in os.path.basename(f)]
     equity_dfs = []
     for f in equity_files:
         ticker = os.path.basename(f).replace("_equity.csv", "").replace("_", ".")
@@ -40,8 +41,9 @@ def load_all_results(results_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.D
 
     equity_df = pd.concat(equity_dfs, ignore_index=True) if equity_dfs else pd.DataFrame()
 
-    # Load signals files
+    # Load signals files (exclude consolidated files)
     signals_files = glob.glob(os.path.join(results_dir, "*_signals.csv"))
+    signals_files = [f for f in signals_files if "consolidated" not in os.path.basename(f)]
     signals_dfs = []
     for f in signals_files:
         df = pd.read_csv(f)
