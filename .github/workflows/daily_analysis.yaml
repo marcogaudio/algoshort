@@ -78,7 +78,7 @@ jobs:
                   dfs.append(df)
 
               combined = pd.concat(dfs, ignore_index=True)
-              combined = combined.sort_values(['Ticker', 'Return %'], ascending=[True, False])
+              combined = combined.sort_values(['Ticker', 'Total Return'], ascending=[True, False])
               combined.to_csv('results/consolidated_equity.csv', index=False)
               print(f'Consolidated {len(equity_files)} equity files')
 
