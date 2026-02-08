@@ -227,12 +227,18 @@ def get_top_trades(
 
 
 def get_date_range(signals_df: pd.DataFrame) -> Tuple[str, str]:
-    """Get the date range from signals data."""
+    """Get the date range for the analysis.
+
+    Note: The signals files only contain the latest row, so we use the
+    configured start date and get the end date from the signals.
+    """
+    # Start date matches the configuration in generate_notebooks.py
+    start_date = "2024-01-01"
+
     if signals_df.empty or "date" not in signals_df.columns:
-        return "N/A", "N/A"
+        return start_date, "N/A"
 
     signals_df["date"] = pd.to_datetime(signals_df["date"])
-    start_date = signals_df["date"].min().strftime("%Y-%m-%d")
     end_date = signals_df["date"].max().strftime("%Y-%m-%d")
     return start_date, end_date
 
