@@ -46,6 +46,12 @@ jobs:
           mkdir -p results
           mkdir -p cache
 
+      - name: Clean results folder
+        run: |
+          echo "Cleaning results folder..."
+          rm -f results/*.csv results/*.txt
+          echo "Results folder cleaned"
+
       - name: Generate and execute notebooks
         run: |
           # Determine arguments based on workflow inputs
