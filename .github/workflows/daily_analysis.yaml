@@ -1,13 +1,22 @@
-name: Daily Italian Stock Analysis
+name: Daily Stock Analysis (Italy + NASDAQ)
 
 on:
-  # Run daily at 18:00 UTC (19:00 CET / 20:00 CEST - after market close)
+  # Run daily at 18:00 UTC (19:00 CET / 20:00 CEST - after both markets close)
   schedule:
     - cron: '0 18 * * 1-5'  # Monday to Friday at 18:00 UTC
 
   # Allow manual trigger
   workflow_dispatch:
     inputs:
+      market:
+        description: 'Market to analyze'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - italy
+          - nasdaq
       max_tickers:
         description: 'Maximum number of tickers to process (0 = all)'
         required: false
@@ -20,7 +29,7 @@ on:
 jobs:
   generate-notebooks:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours max for all tickers
+    timeout-minutes: 180  # 3 hours max for all tickers (both markets)
 
     steps:
       - name: Checkout repository
@@ -42,30 +51,54 @@ jobs:
 
       - name: Create output directories
         run: |
-          mkdir -p notebooks
-          mkdir -p results
+          mkdir -p notebooks/italy notebooks/nasdaq
+          mkdir -p results/italy results/nasdaq
           mkdir -p cache
 
-      - name: Clean results folder
+      - name: Clean results folders
         run: |
-          echo "Cleaning results folder..."
-          rm -f results/*.csv results/*.txt
-          echo "Results folder cleaned"
+          echo "Cleaning results folders..."
+          MARKET="${{ github.event.inputs.market || 'all' }}"
 
-      - name: Generate and execute notebooks
+          if [ "$MARKET" = "all" ] || [ "$MARKET" = "italy" ]; then
+            rm -f results/italy/*.csv results/italy/*.txt
+            echo "Italy results folder cleaned"
+          fi
+
+          if [ "$MARKET" = "all" ] || [ "$MARKET" = "nasdaq" ]; then
+            rm -f results/nasdaq/*.csv results/nasdaq/*.txt
+            echo "NASDAQ results folder cleaned"
+          fi
+
+      - name: Generate Italy notebooks
+        if: ${{ github.event.inputs.market == 'all' || github.event.inputs.market == 'italy' || github.event.inputs.market == '' }}
         run: |
-          # Determine arguments based on workflow inputs
-          ARGS=""
+          echo "=== Processing Italian Market ==="
+          ARGS="--market italy"
 
           if [ "${{ github.event.inputs.single_ticker }}" != "" ]; then
-            ARGS="--ticker ${{ github.event.inputs.single_ticker }}"
+            ARGS="$ARGS --ticker ${{ github.event.inputs.single_ticker }}"
           elif [ "${{ github.event.inputs.max_tickers }}" != "0" ] && [ "${{ github.event.inputs.max_tickers }}" != "" ]; then
-            ARGS="--max-tickers ${{ github.event.inputs.max_tickers }}"
+            ARGS="$ARGS --max-tickers ${{ github.event.inputs.max_tickers }}"
           fi
 
           python generate_notebooks.py $ARGS
 
-      - name: Generate consolidated report
+      - name: Generate NASDAQ notebooks
+        if: ${{ github.event.inputs.market == 'all' || github.event.inputs.market == 'nasdaq' || github.event.inputs.market == '' }}
+        run: |
+          echo "=== Processing NASDAQ Market ==="
+          ARGS="--market nasdaq"
+
+          if [ "${{ github.event.inputs.single_ticker }}" != "" ]; then
+            ARGS="$ARGS --ticker ${{ github.event.inputs.single_ticker }}"
+          elif [ "${{ github.event.inputs.max_tickers }}" != "0" ] && [ "${{ github.event.inputs.max_tickers }}" != "" ]; then
+            ARGS="$ARGS --max-tickers ${{ github.event.inputs.max_tickers }}"
+          fi
+
+          python generate_notebooks.py $ARGS
+
+      - name: Generate consolidated reports
         run: |
           python -c "
           import pandas as pd
@@ -73,34 +106,41 @@ jobs:
           import os
           from datetime import datetime
 
-          # Consolidate equity results
-          equity_files = glob.glob('results/*_equity.csv')
-          if equity_files:
-              dfs = []
-              for f in equity_files:
-                  ticker = os.path.basename(f).replace('_equity.csv', '').replace('_', '.')
-                  df = pd.read_csv(f)
-                  df['Ticker'] = ticker
-                  dfs.append(df)
+          for market in ['italy', 'nasdaq']:
+              results_dir = f'results/{market}'
 
-              combined = pd.concat(dfs, ignore_index=True)
-              combined = combined.sort_values(['Ticker', 'Total Return'], ascending=[True, False])
-              combined.to_csv('results/consolidated_equity.csv', index=False)
-              print(f'Consolidated {len(equity_files)} equity files')
+              # Consolidate equity results
+              equity_files = glob.glob(f'{results_dir}/*_equity.csv')
+              equity_files = [f for f in equity_files if 'consolidated' not in f]
 
-          # Consolidate signal results
-          signal_files = glob.glob('results/*_signals.csv')
-          if signal_files:
-              dfs = [pd.read_csv(f) for f in signal_files]
-              combined = pd.concat(dfs, ignore_index=True)
-              combined.to_csv('results/consolidated_signals.csv', index=False)
-              print(f'Consolidated {len(signal_files)} signal files')
+              if equity_files:
+                  dfs = []
+                  for f in equity_files:
+                      ticker = os.path.basename(f).replace('_equity.csv', '').replace('_', '.')
+                      df = pd.read_csv(f)
+                      df['Ticker'] = ticker
+                      dfs.append(df)
 
-          # Create summary
-          with open('results/summary.txt', 'w') as f:
-              f.write(f'Italian Stock Analysis Summary\\n')
-              f.write(f'Generated: {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")}\\n')
-              f.write(f'Tickers processed: {len(equity_files)}\\n')
+                  combined = pd.concat(dfs, ignore_index=True)
+                  combined = combined.sort_values(['Ticker', 'Total Return'], ascending=[True, False])
+                  combined.to_csv(f'{results_dir}/consolidated_equity.csv', index=False)
+                  print(f'{market.upper()}: Consolidated {len(equity_files)} equity files')
+
+              # Consolidate signal results
+              signal_files = glob.glob(f'{results_dir}/*_signals.csv')
+              signal_files = [f for f in signal_files if 'consolidated' not in f]
+
+              if signal_files:
+                  dfs = [pd.read_csv(f) for f in signal_files]
+                  combined = pd.concat(dfs, ignore_index=True)
+                  combined.to_csv(f'{results_dir}/consolidated_signals.csv', index=False)
+                  print(f'{market.upper()}: Consolidated {len(signal_files)} signal files')
+
+              # Create summary
+              with open(f'{results_dir}/summary.txt', 'w') as f:
+                  f.write(f'{market.upper()} Stock Analysis Summary\n')
+                  f.write(f'Generated: {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")}\n')
+                  f.write(f'Tickers processed: {len(equity_files)}\n')
           "
 
       - name: Commit and push results
@@ -109,14 +149,15 @@ jobs:
           git config --local user.name "GitHub Actions"
 
           # Add all generated files
-          git add notebooks/*.ipynb || true
-          git add results/*.csv || true
-          git add results/*.txt || true
+          git add notebooks/italy/*.ipynb || true
+          git add notebooks/nasdaq/*.ipynb || true
+          git add results/italy/*.csv results/italy/*.txt || true
+          git add results/nasdaq/*.csv results/nasdaq/*.txt || true
           git add cache/*.parquet || true
 
           # Create commit with date
           DATE=$(date +%Y-%m-%d)
-          git commit -m "Daily analysis: $DATE" || echo "No changes to commit"
+          git commit -m "Daily analysis: $DATE (Italy + NASDAQ)" || echo "No changes to commit"
 
           # Push changes
           git push origin main || echo "No changes to push"
@@ -139,5 +180,5 @@ jobs:
       - name: Create failure summary
         run: |
           echo "## Daily Analysis Failed" >> $GITHUB_STEP_SUMMARY
-          echo "The daily Italian stock analysis workflow failed." >> $GITHUB_STEP_SUMMARY
+          echo "The daily stock analysis workflow (Italy + NASDAQ) failed." >> $GITHUB_STEP_SUMMARY
           echo "Please check the workflow logs for details." >> $GITHUB_STEP_SUMMARY

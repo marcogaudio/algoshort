@@ -1,4 +1,4 @@
-name: Daily Trading Signals Email
+name: Daily Trading Signals Email (Italy + NASDAQ)
 
 on:
   schedule:
@@ -34,16 +34,25 @@ jobs:
           # Pull latest results from the repository
           git pull origin main || true
 
-      - name: Run analysis script
-        id: analysis
+      - name: Run Italy analysis
+        id: italy_analysis
         run: |
-          # Run the analysis and capture output
-          python analyze_results.py --export > analysis_output.txt 2>&1
+          echo "=== Italian Market Analysis ===" > analysis_output.txt
+          python analyze_results.py --market italy --export >> analysis_output.txt 2>&1
 
-          # Store the output for the email
-          echo "ANALYSIS_OUTPUT<<EOF" >> $GITHUB_OUTPUT
-          cat analysis_output.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Copy Italy results
+          cp results/italy/top_trades_recommendation.csv italy_top_trades.csv || true
+
+      - name: Run NASDAQ analysis
+        id: nasdaq_analysis
+        run: |
+          echo "" >> analysis_output.txt
+          echo "" >> analysis_output.txt
+          echo "=== NASDAQ Market Analysis ===" >> analysis_output.txt
+          python analyze_results.py --market nasdaq --export >> analysis_output.txt 2>&1
+
+          # Copy NASDAQ results
+          cp results/nasdaq/top_trades_recommendation.csv nasdaq_top_trades.csv || true
 
       - name: Create email body
         run: |
@@ -54,9 +63,12 @@ jobs:
           <head>
             <style>
               body { font-family: 'Courier New', monospace; background-color: #1a1a2e; color: #eaeaea; padding: 20px; }
-              .container { max-width: 800px; margin: 0 auto; }
+              .container { max-width: 900px; margin: 0 auto; }
               h1 { color: #4ecca3; border-bottom: 2px solid #4ecca3; padding-bottom: 10px; }
               h2 { color: #00d9ff; margin-top: 30px; }
+              .market-section { margin: 30px 0; padding: 20px; border: 1px solid #4ecca3; border-radius: 10px; }
+              .italy { border-color: #00ff88; }
+              .nasdaq { border-color: #ff6b6b; }
               .signal-long { color: #00ff88; font-weight: bold; }
               .signal-short { color: #ff6b6b; font-weight: bold; }
               table { border-collapse: collapse; width: 100%; margin: 20px 0; }
@@ -64,15 +76,15 @@ jobs:
               th { background-color: #16213e; color: #4ecca3; }
               tr:nth-child(even) { background-color: #1f1f3d; }
               .disclaimer { font-size: 12px; color: #888; margin-top: 30px; padding: 15px; border: 1px solid #444; }
-              pre { background-color: #0f0f23; padding: 15px; overflow-x: auto; border-radius: 5px; }
+              pre { background-color: #0f0f23; padding: 15px; overflow-x: auto; border-radius: 5px; font-size: 11px; }
             </style>
           </head>
           <body>
             <div class="container">
-              <h1>🎯 Daily Trading Signals - Italian Stock Market</h1>
+              <h1>Daily Trading Signals - Italy + NASDAQ</h1>
               <p>Generated: ${CURRENT_DATE}</p>
 
-              <h2>📊 Analysis Report</h2>
+              <h2>Analysis Report</h2>
               <pre>
           EOF
 
@@ -82,7 +94,7 @@ jobs:
               </pre>
 
               <div class="disclaimer">
-                <strong>⚠️ DISCLAIMER:</strong> This is an automated analysis based on historical data and technical indicators.
+                <strong>DISCLAIMER:</strong> This is an automated analysis based on historical data and technical indicators.
                 Past performance does not guarantee future results. Always do your own research and manage risk appropriately.
                 This is not financial advice.
               </div>
@@ -103,16 +115,16 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USERNAME }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "🎯 Daily Trading Signals - ${{ github.event.repository.name }} - ${{ steps.date.outputs.TODAY }}"
+          subject: "Daily Trading Signals (Italy + NASDAQ) - ${{ steps.date.outputs.TODAY }}"
           to: ${{ secrets.EMAIL_RECIPIENT }}
           from: ${{ secrets.GMAIL_USERNAME }}
           html_body: file://email_body.html
-          attachments: results/top_trades_recommendation.csv
+          attachments: italy_top_trades.csv,nasdaq_top_trades.csv
 
       - name: Notify success
         if: success()
-        run: echo "✅ Email sent successfully to the configured recipient"
+        run: echo "Email sent successfully with Italy + NASDAQ signals"
 
       - name: Notify failure
         if: failure()
-        run: echo "❌ Failed to send email. Check your SMTP credentials and secrets configuration."
+        run: echo "Failed to send email. Check your SMTP credentials and secrets configuration."
