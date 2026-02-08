@@ -226,6 +226,66 @@ def get_top_trades(
     return result
 
 
+def get_date_range(signals_df: pd.DataFrame) -> Tuple[str, str]:
+    """Get the date range from signals data."""
+    if signals_df.empty or "date" not in signals_df.columns:
+        return "N/A", "N/A"
+
+    signals_df["date"] = pd.to_datetime(signals_df["date"])
+    start_date = signals_df["date"].min().strftime("%Y-%m-%d")
+    end_date = signals_df["date"].max().strftime("%Y-%m-%d")
+    return start_date, end_date
+
+
+def print_strategy_legend():
+    """Print legend explaining each strategy."""
+    print("\n" + "=" * 80)
+    print("📖 STRATEGY LEGEND")
+    print("=" * 80)
+
+    strategies = {
+        "rrg": "Relative Rotation Graph - Measures relative strength and momentum vs benchmark (FTSEMIB). Signals based on RRG quadrant position.",
+        "rema_50100150": "Triple EMA Crossover - Uses 50/100/150 day Exponential Moving Averages. LONG when fast > medium > slow, SHORT when reversed.",
+        "rtt_5020": "Turtle Trader Breakout (50/20) - LONG on 50-day high breakout, exit on 20-day low. SHORT on 50-day low breakdown.",
+        "rtt_2010": "Turtle Trader Breakout (20/10) - Faster version using 20-day entry and 10-day exit signals.",
+        "rbo_20": "Breakout 20-day - Simple breakout strategy based on 20-day high/low levels.",
+        "rbo_55": "Breakout 55-day - Longer-term breakout strategy based on 55-day high/low levels.",
+        "floor": "Floor Regime - Identifies price floor levels using volatility-adjusted support zones.",
+        "ceiling": "Ceiling Regime - Identifies price ceiling levels using volatility-adjusted resistance zones.",
+        "fc_regime": "Floor/Ceiling Combined - Combines floor and ceiling detection for regime identification.",
+        "sma_cross": "SMA Crossover - Simple Moving Average crossover strategy.",
+        "macd": "MACD Signal - Moving Average Convergence Divergence trend-following strategy.",
+    }
+
+    for code, description in strategies.items():
+        print(f"\n  {code:15} {description}")
+
+    print()
+
+
+def print_assumptions(signals_df: pd.DataFrame):
+    """Print analysis assumptions and parameters."""
+    start_date, end_date = get_date_range(signals_df)
+
+    print("\n" + "=" * 80)
+    print("⚙️  ANALYSIS ASSUMPTIONS & PARAMETERS")
+    print("=" * 80)
+    print(f"\n  Data Period:")
+    print(f"    Start Date:       {start_date}")
+    print(f"    End Date:         {end_date}")
+    print(f"\n  Benchmark:          FTSEMIB.MI (FTSE MIB Index)")
+    print(f"\n  Position Sizing:")
+    print(f"    Initial Capital:  €10,000")
+    print(f"    Risk per Trade:   2%")
+    print(f"    Stop Loss:        ATR-based (2x ATR)")
+    print(f"\n  Scoring Weights:")
+    print(f"    Total Return:     40%")
+    print(f"    Max Drawdown:     30%")
+    print(f"    Risk-Adj Return:  30%")
+    print(f"\n  Signal Filter:      Only active signals (LONG=1 or SHORT=-1)")
+    print()
+
+
 def print_summary_report(
     equity_df: pd.DataFrame,
     signals_df: pd.DataFrame,
@@ -237,6 +297,9 @@ def print_summary_report(
     print("ITALIAN STOCK MARKET - TRADING ANALYSIS SUMMARY")
     print(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80)
+
+    # Print assumptions first
+    print_assumptions(signals_df)
 
     # Overall statistics
     n_tickers = equity_df["Ticker"].nunique()
@@ -312,6 +375,9 @@ def print_summary_report(
     print("-" * 80)
     for i, (_, row) in enumerate(top_trades.iterrows(), 1):
         print(f"{i:<6}{row['Direction']:<10}{row['Ticker']:<12}{row['Signal']:<18}{row['Total Return']:+.2f}%{'':<5}{row['Max Drawdown']:.2f}%{'':<5}{row['Composite_Score']:.3f}")
+
+    # Print strategy legend
+    print_strategy_legend()
 
     print("\n" + "=" * 80)
     print("⚠️  DISCLAIMER: Past performance does not guarantee future results.")

@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set current date
+        id: date
+        run: echo "TODAY=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -43,7 +47,8 @@ jobs:
 
       - name: Create email body
         run: |
-          cat << 'EOF' > email_body.html
+          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S UTC')
+          cat << EOF > email_body.html
           <!DOCTYPE html>
           <html>
           <head>
@@ -65,7 +70,7 @@ jobs:
           <body>
             <div class="container">
               <h1>🎯 Daily Trading Signals - Italian Stock Market</h1>
-              <p>Generated: $(date '+%Y-%m-%d %H:%M:%S UTC')</p>
+              <p>Generated: ${CURRENT_DATE}</p>
 
               <h2>📊 Analysis Report</h2>
               <pre>
@@ -98,7 +103,7 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USERNAME }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "🎯 Daily Trading Signals - ${{ github.event.repository.name }} - $(date '+%Y-%m-%d')"
+          subject: "🎯 Daily Trading Signals - ${{ github.event.repository.name }} - ${{ steps.date.outputs.TODAY }}"
           to: ${{ secrets.EMAIL_RECIPIENT }}
           from: ${{ secrets.GMAIL_USERNAME }}
           html_body: file://email_body.html
