@@ -6,11 +6,35 @@ are defined here to ensure consistency across the system.
 """
 
 # =============================================================================
+# MARKET CONFIGURATIONS
+# =============================================================================
+MARKETS = {
+    "italy": {
+        "name": "Italian Stock Market (FTSE MIB)",
+        "benchmark": "FTSEMIB.MI",
+        "tickers_file": "tickers_italy.txt",
+        "output_dir": "notebooks/italy",
+        "results_dir": "results/italy",
+    },
+    "nasdaq": {
+        "name": "NASDAQ (Top 100)",
+        "benchmark": "^IXIC",
+        "tickers_file": "tickers_nasdaq.txt",
+        "output_dir": "notebooks/nasdaq",
+        "results_dir": "results/nasdaq",
+    },
+}
+
+DEFAULT_MARKET = "italy"
+
+# =============================================================================
 # DATA CONFIGURATION
 # =============================================================================
-BENCHMARK = "FTSEMIB.MI"
 START_DATE = "2024-01-01"
 INITIAL_CAPITAL = 10000
+
+# Legacy single benchmark (for backward compatibility)
+BENCHMARK = MARKETS[DEFAULT_MARKET]["benchmark"]
 
 # =============================================================================
 # BREAKOUT STRATEGY (rbo_20, rbo_50, rbo_100)

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Generate and execute trading analysis notebooks for Italian stock market tickers.
+Generate and execute trading analysis notebooks for stock market tickers.
 
 This script:
-1. Reads a list of Italian stock tickers
-2. Creates a notebook for each ticker from the full ENI.MI.ipynb template
+1. Reads a list of stock tickers (Italy or NASDAQ)
+2. Creates a notebook for each ticker from the template
 3. Executes the notebook with papermill
 4. Saves the executed notebook with outputs
 
 Usage:
-    python generate_notebooks.py [--tickers-file tickers_italy.txt] [--output-dir notebooks/]
+    python generate_notebooks.py [--market italy|nasdaq] [--ticker AAPL]
 """
 
 import argparse
@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from config import (
-    BENCHMARK, START_DATE, INITIAL_CAPITAL,
+    MARKETS, DEFAULT_MARKET, START_DATE, INITIAL_CAPITAL,
     BREAKOUT_WINDOWS, TURTLE_ENTRY_WINDOW, TURTLE_EXIT_WINDOW,
     MA_SHORT, MA_MEDIUM, MA_LONG,
     FC_LEVEL, FC_VOLATILITY_WINDOW, FC_THRESHOLD, FC_RETRACEMENT, FC_DGT, FC_D_VOL, FC_DIST_PCT, FC_R_VOL,
@@ -897,7 +897,7 @@ def create_notebook_template() -> dict:
                     "# =============================================================================\n",
                     "import os\n",
                     "\n",
-                    "output_dir = \"./results\"\n",
+                    "output_dir = \"{RESULTS_DIR}\"\n",
                     "os.makedirs(output_dir, exist_ok=True)\n",
                     "\n",
                     "# Export equity summary\n",
@@ -934,16 +934,22 @@ def create_notebook_template() -> dict:
     }
 
 
-def generate_notebook(ticker: str, template: dict, output_dir: str, execution_date: str) -> str:
+def generate_notebook(ticker: str, template: dict, output_dir: str, execution_date: str,
+                      benchmark: str = None, results_dir: str = "./results") -> str:
     """Generate a notebook for a specific ticker."""
     import copy
     notebook = copy.deepcopy(template)
+
+    # Use provided benchmark or default from config
+    if benchmark is None:
+        benchmark = MARKETS[DEFAULT_MARKET]["benchmark"]
 
     # Define all replacements from config
     replacements = {
         '{TICKER}': ticker,
         '{DATE}': execution_date,
-        '{BENCHMARK}': BENCHMARK,
+        '{BENCHMARK}': benchmark,
+        '{RESULTS_DIR}': results_dir,
         '{START_DATE}': START_DATE,
         '{INITIAL_CAPITAL}': str(INITIAL_CAPITAL),
         '{BREAKOUT_WINDOWS}': str(BREAKOUT_WINDOWS),
@@ -1028,23 +1034,35 @@ def execute_notebook(notebook_path: str, output_path: Optional[str] = None, time
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='Generate and execute trading analysis notebooks for Italian stocks.'
+        description='Generate and execute trading analysis notebooks for stocks.'
     )
-    parser.add_argument('--tickers-file', default='tickers_italy.txt')
-    parser.add_argument('--output-dir', default='notebooks')
+    parser.add_argument('--market', default=DEFAULT_MARKET, choices=list(MARKETS.keys()),
+                        help=f'Market to analyze (default: {DEFAULT_MARKET})')
+    parser.add_argument('--tickers-file', default=None, help='Override tickers file')
+    parser.add_argument('--output-dir', default=None, help='Override output directory')
     parser.add_argument('--no-execute', action='store_true')
     parser.add_argument('--ticker', help='Process only a specific ticker')
     parser.add_argument('--max-tickers', type=int, default=0)
 
     args = parser.parse_args()
 
-    os.makedirs(args.output_dir, exist_ok=True)
-    os.makedirs('results', exist_ok=True)
+    # Get market configuration
+    market_config = MARKETS[args.market]
+    benchmark = market_config["benchmark"]
+    tickers_file = args.tickers_file or market_config["tickers_file"]
+    output_dir = args.output_dir or market_config["output_dir"]
+    results_dir = market_config["results_dir"]
+
+    logger.info(f"Market: {market_config['name']}")
+    logger.info(f"Benchmark: {benchmark}")
+
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
 
     if args.ticker:
         tickers = [args.ticker]
     else:
-        tickers = load_tickers(args.tickers_file)
+        tickers = load_tickers(tickers_file)
 
     if args.max_tickers > 0:
         tickers = tickers[:args.max_tickers]
@@ -1059,7 +1077,7 @@ def main():
         logger.info(f"[{i}/{len(tickers)}] Processing {ticker}...")
 
         try:
-            notebook_path = generate_notebook(ticker, template, args.output_dir, execution_date)
+            notebook_path = generate_notebook(ticker, template, output_dir, execution_date, benchmark, results_dir)
             logger.info(f"  Generated: {notebook_path}")
 
             if not args.no_execute:

@@ -9,7 +9,7 @@ This script:
 4. Ranks and suggests the top 10 best trading opportunities
 
 Usage:
-    python analyze_results.py [--results-dir results/] [--top N]
+    python analyze_results.py [--market italy|nasdaq] [--top N]
 """
 
 import argparse
@@ -22,7 +22,8 @@ import pandas as pd
 import numpy as np
 
 from config import (
-    START_DATE, BENCHMARK, INITIAL_CAPITAL,
+    MARKETS, DEFAULT_MARKET,
+    START_DATE, INITIAL_CAPITAL,
     BREAKOUT_WINDOWS, TURTLE_ENTRY_WINDOW, TURTLE_EXIT_WINDOW,
     MA_SHORT, MA_MEDIUM, MA_LONG,
     FC_LEVEL, FC_VOLATILITY_WINDOW, FC_THRESHOLD, FC_RETRACEMENT,
@@ -31,6 +32,10 @@ from config import (
     SCORE_WEIGHT_RETURN, SCORE_WEIGHT_DRAWDOWN, SCORE_WEIGHT_RISK_ADJ,
     TOP_N_TRADES, get_config_summary
 )
+
+# Global variable for current market (set in main)
+CURRENT_MARKET = None
+BENCHMARK = None
 
 
 def load_all_results(results_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -296,10 +301,11 @@ def print_assumptions(signals_df: pd.DataFrame):
     print("⚙️  ANALYSIS ASSUMPTIONS & PARAMETERS")
     print("=" * 80)
 
+    market_name = CURRENT_MARKET["name"] if CURRENT_MARKET else "Index"
     print(f"\n  Data Period:")
     print(f"    Start Date:       {START_DATE}")
     print(f"    End Date:         {end_date}")
-    print(f"    Benchmark:        {BENCHMARK} (FTSE MIB Index)")
+    print(f"    Benchmark:        {BENCHMARK} ({market_name})")
 
     print(f"\n  Breakout Strategy (rbo_{BREAKOUT_WINDOWS[0]}, rbo_{BREAKOUT_WINDOWS[1]}, rbo_{BREAKOUT_WINDOWS[2]}):")
     print(f"    Windows:          {', '.join(map(str, BREAKOUT_WINDOWS))} days")
@@ -350,8 +356,9 @@ def print_summary_report(
     # Remove duplicates - keep only unique Ticker+Signal combinations
     equity_df = equity_df.drop_duplicates(subset=["Ticker", "Signal"], keep="first")
 
+    market_name = CURRENT_MARKET["name"] if CURRENT_MARKET else "Stock Market"
     print("=" * 80)
-    print("ITALIAN STOCK MARKET - TRADING ANALYSIS SUMMARY")
+    print(f"{market_name.upper()} - TRADING ANALYSIS SUMMARY")
     print(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80)
 
@@ -450,13 +457,21 @@ def export_results(top_trades: pd.DataFrame, output_dir: str):
 
 
 def main():
+    global CURRENT_MARKET, BENCHMARK
+
     parser = argparse.ArgumentParser(
         description="Analyze trading results and suggest top trades."
     )
     parser.add_argument(
+        "--market",
+        default=DEFAULT_MARKET,
+        choices=list(MARKETS.keys()),
+        help=f"Market to analyze (default: {DEFAULT_MARKET})"
+    )
+    parser.add_argument(
         "--results-dir",
-        default="results",
-        help="Directory containing result CSV files"
+        default=None,
+        help="Override results directory"
     )
     parser.add_argument(
         "--top",
@@ -472,12 +487,21 @@ def main():
 
     args = parser.parse_args()
 
+    # Get market configuration
+    market_config = MARKETS[args.market]
+    CURRENT_MARKET = market_config
+    BENCHMARK = market_config["benchmark"]
+    results_dir = args.results_dir or market_config["results_dir"]
+
+    print(f"Market: {market_config['name']}")
+    print(f"Benchmark: {BENCHMARK}")
+
     # Load data
     print("Loading results...")
-    equity_df, signals_df, grid_df = load_all_results(args.results_dir)
+    equity_df, signals_df, grid_df = load_all_results(results_dir)
 
     if equity_df.empty:
-        print(f"Error: No equity files found in {args.results_dir}")
+        print(f"Error: No equity files found in {results_dir}")
         return 1
 
     print(f"Loaded {len(equity_df)} strategy results for {equity_df['Ticker'].nunique()} tickers")
@@ -490,7 +514,7 @@ def main():
 
     # Export if requested
     if args.export:
-        export_results(top_trades, args.results_dir)
+        export_results(top_trades, results_dir)
 
     return 0
 
