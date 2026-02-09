@@ -1,9 +1,9 @@
 name: Daily Stock Analysis (Italy + NASDAQ)
 
 on:
-  # Run daily at 18:00 UTC (19:00 CET / 20:00 CEST - after both markets close)
+  # Run daily at 21:00 UTC (22:00 CET / 23:00 CEST)
   schedule:
-    - cron: '0 18 * * 1-5'  # Monday to Friday at 18:00 UTC
+    - cron: '0 21 * * 1-5'  # Monday to Friday at 21:00 UTC (22:00 CET)
 
   # Allow manual trigger
   workflow_dispatch:
