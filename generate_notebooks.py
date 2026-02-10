@@ -225,9 +225,8 @@ def create_notebook_template() -> dict:
                     "df = handler.get_ohlc_data(TICKER)\n",
                     "bmk = handler.get_ohlc_data(BENCHMARK)\n",
                     "\n",
-                    "# Filter data to start from START_DATE (cache may contain older data)\n",
-                    "df = df[df['date'] >= START_DATE].reset_index(drop=True)\n",
-                    "bmk = bmk[bmk['date'] >= START_DATE].reset_index(drop=True)\n",
+                    "# Add FX column (required for some calculations)\n",
+                    "# Set to 1 for same currency\n",
                     "df['fx'] = 1\n",
                     "\n",
                     "print(f\"{TICKER} Data Shape: {df.shape}\")\n",
@@ -484,7 +483,13 @@ def create_notebook_template() -> dict:
                     "    counts = df['rrg'].value_counts().to_dict()\n",
                     "    print(f\"\\n  rrg (Floor/Ceiling Regime):\")\n",
                     "    print(f\"    Bullish (1):  {counts.get(1.0, 0):>5} bars ({counts.get(1.0, 0)/len(df)*100:.1f}%)\")\n",
-                    "    print(f\"    Bearish (-1): {counts.get(-1.0, 0):>5} bars ({counts.get(-1.0, 0)/len(df)*100:.1f}%)\")"
+                    "    print(f\"    Bearish (-1): {counts.get(-1.0, 0):>5} bars ({counts.get(-1.0, 0)/len(df)*100:.1f}%)\")\n",
+                    "\n",
+                    "# Also compute absolute regime\n",
+                    "df = regime_fc.compute_regime(\n",
+                    "    relative=False, lvl={FC_LEVEL}, vlty_n={FC_VOLATILITY_WINDOW}, threshold={FC_THRESHOLD},\n",
+                    "    dgt={FC_DGT}, d_vol={FC_D_VOL}, dist_pct={FC_DIST_PCT}, retrace_pct={FC_RETRACEMENT}, r_vol={FC_R_VOL}\n",
+                    ")"
                 ]
             },
             # Cell 18: Signal Summary
@@ -561,7 +566,22 @@ def create_notebook_template() -> dict:
                     "df = searcher.df"
                 ]
             },
-            # Cell 21: Grid Search Results
+            # Cell 21: Update signal_columns with grid search outputs
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# =============================================================================\n",
+                    "# UPDATE SIGNAL COLUMNS WITH COMBINED SIGNALS\n",
+                    "# =============================================================================\n",
+                    "# Add grid search combined signals to signal_columns\n",
+                    "# so they are processed through returns, stop loss, and position sizing\n",
+                    "signal_columns = results.output_column.tolist() + signal_columns"
+                ]
+            },
+            # Cell 22: Grid Search Results
             {
                 "cell_type": "code",
                 "execution_count": None,
@@ -584,7 +604,7 @@ def create_notebook_template() -> dict:
                     "print(top_results.to_string(index=False))"
                 ]
             },
-            # Cell 22: Returns Markdown
+            # Cell 23: Returns Markdown
             {
                 "cell_type": "markdown",
                 "metadata": {},
@@ -602,7 +622,7 @@ def create_notebook_template() -> dict:
                     "- `{signal}_cumul`: Cumulative returns"
                 ]
             },
-            # Cell 23: Calculate Returns
+            # Cell 24: Calculate Returns
             {
                 "cell_type": "code",
                 "execution_count": None,
@@ -628,7 +648,7 @@ def create_notebook_template() -> dict:
                     "print(f\"\\nReturn columns created for {len(signal_columns)} signals\")"
                 ]
             },
-            # Cell 24: Returns Summary
+            # Cell 25: Returns Summary
             {
                 "cell_type": "code",
                 "execution_count": None,
@@ -653,7 +673,7 @@ def create_notebook_template() -> dict:
                     "    print(f\"  {sig}: {ret:+.2f}%\")"
                 ]
             },
-            # Cell 25: Stop Loss Markdown
+            # Cell 26: Stop Loss Markdown
             {
                 "cell_type": "markdown",
                 "metadata": {},
@@ -673,7 +693,7 @@ def create_notebook_template() -> dict:
                     "| `moving_average_stop_loss` | MA-based stops |"
                 ]
             },
-            # Cell 26: Calculate Stop Losses
+            # Cell 27: Calculate Stop Losses
             {
                 "cell_type": "code",
                 "execution_count": None,
@@ -698,7 +718,7 @@ def create_notebook_template() -> dict:
                     "print(f\"\\nStop loss columns created: {len(sl_cols)}\")"
                 ]
             },
-            # Cell 27: Position Sizing Markdown
+            # Cell 28: Position Sizing Markdown
             {
                 "cell_type": "markdown",
                 "metadata": {},
@@ -719,7 +739,7 @@ def create_notebook_template() -> dict:
                     "| `convex` | Increase risk when winning | Aggressive |"
                 ]
             },
-            # Cell 28: Position Sizing
+            # Cell 29: Position Sizing
             {
                 "cell_type": "code",
                 "execution_count": None,
@@ -753,7 +773,7 @@ def create_notebook_template() -> dict:
                     ")"
                 ]
             },
-            # Cell 29: Equity Curve Analysis
+            # Cell 30: Equity Curve Analysis
             {
                 "cell_type": "code",
                 "execution_count": None,
@@ -766,27 +786,33 @@ def create_notebook_template() -> dict:
                     "print(\"\\nEquity Curve Summary:\")\n",
                     "print(\"=\" * 60)\n",
                     "\n",
-                    "equity_cols = [col for col in df.columns if '_equity_equal' in col]\n",
+                    "# Find all equity columns (equal, constant, concave, convex)\n",
+                    "equity_cols = [col for col in df.columns if '_equity_' in col]\n",
                     "\n",
                     "equity_results = []\n",
                     "for col in equity_cols:\n",
-                    "    signal_name = col.replace('_equity_equal', '')\n",
                     "    final_equity = df[col].iloc[-1]\n",
                     "    total_return = (final_equity / INITIAL_CAPITAL - 1) * 100\n",
                     "    max_equity = df[col].max()\n",
                     "    max_drawdown = (df[col].min() - max_equity) / max_equity * 100\n",
                     "    equity_results.append({\n",
-                    "        'Signal': signal_name,\n",
+                    "        'equity_signal': col,\n",
                     "        'Final Equity': final_equity,\n",
                     "        'Total Return': total_return,\n",
                     "        'Max Drawdown': max_drawdown\n",
                     "    })\n",
                     "\n",
-                    "equity_df = pd.DataFrame(equity_results).sort_values('Total Return', ascending=False)\n",
-                    "print(equity_df.to_string(index=False))"
+                    "equity_df = pd.DataFrame(equity_results).sort_values('Final Equity', ascending=False)\n",
+                    "equity_df['combination_name'] = equity_df['equity_signal'].str.replace(r'_equity.*$', '', regex=True)\n",
+                    "equity_df = equity_df.merge(results[['combination_name', 'total_trades']], on='combination_name', how='left').sort_values('Final Equity', ascending=False).reset_index(drop=True)\n",
+                    "\n",
+                    "# Create backward-compatible 'Signal' column for analyze_results.py\n",
+                    "equity_df['Signal'] = equity_df['equity_signal']\n",
+                    "\n",
+                    "print(equity_df.head(20).to_string(index=False))"
                 ]
             },
-            # Cell 30: Visualize Equity Curves
+            # Cell 31: Visualize Equity Curves
             {
                 "cell_type": "code",
                 "execution_count": None,
@@ -796,19 +822,19 @@ def create_notebook_template() -> dict:
                     "# =============================================================================\n",
                     "# VISUALIZE EQUITY CURVES\n",
                     "# =============================================================================\n",
-                    "top_signals = equity_df.head(3)['Signal'].tolist()\n",
+                    "top_signals = equity_df.head(3)['equity_signal'].tolist()\n",
                     "\n",
                     "fig, ax = plt.subplots(figsize=(14, 6))\n",
                     "\n",
-                    "for signal in top_signals:\n",
-                    "    equity_col = f'{signal}_equity_equal'\n",
-                    "    ax.plot(df['date'], df[equity_col], label=signal, linewidth=1)\n",
+                    "for equity_col in top_signals:\n",
+                    "    if equity_col in df.columns:\n",
+                    "        ax.plot(df['date'], df[equity_col], label=equity_col, linewidth=1)\n",
                     "\n",
                     "ax.axhline(y=INITIAL_CAPITAL, color='gray', linestyle='--', alpha=0.5, label='Initial Capital')\n",
                     "\n",
                     "ax.set_xlabel('Date')\n",
                     "ax.set_ylabel('Equity')\n",
-                    "ax.set_title(f'{TICKER} - Top 3 Strategy Equity Curves (Equal Weight)')\n",
+                    "ax.set_title(f'{TICKER} - Top 3 Strategy Equity Curves')\n",
                     "ax.legend(loc='best')\n",
                     "ax.grid(True, alpha=0.3)\n",
                     "ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:,.0f}'))\n",
@@ -817,7 +843,7 @@ def create_notebook_template() -> dict:
                     "plt.show()"
                 ]
             },
-            # Cell 31: Final Summary Markdown
+            # Cell 32: Final Summary Markdown
             {
                 "cell_type": "markdown",
                 "metadata": {},
@@ -829,7 +855,7 @@ def create_notebook_template() -> dict:
                     "### Complete Analysis Results"
                 ]
             },
-            # Cell 32: Final Summary
+            # Cell 33: Final Summary
             {
                 "cell_type": "code",
                 "execution_count": None,
@@ -857,7 +883,7 @@ def create_notebook_template() -> dict:
                     "\n",
                     "best_strategy = equity_df.iloc[0]\n",
                     "print(f\"\\n3. BEST STRATEGY:\")\n",
-                    "print(f\"   Signal: {best_strategy['Signal']}\")\n",
+                    "print(f\"   Signal: {best_strategy['equity_signal']}\")\n",
                     "print(f\"   Total Return: {best_strategy['Total Return']:+.2f}%\")\n",
                     "print(f\"   Final Equity: {best_strategy['Final Equity']:,.0f}\")\n",
                     "\n",
@@ -885,7 +911,7 @@ def create_notebook_template() -> dict:
                     "print(\"=\" * 70)"
                 ]
             },
-            # Cell 33: Export Results
+            # Cell 34: Export Results
             {
                 "cell_type": "code",
                 "execution_count": None,
