@@ -26,6 +26,9 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: write
+
 jobs:
   generate-notebooks:
     runs-on: ubuntu-latest
