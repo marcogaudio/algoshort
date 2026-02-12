@@ -519,14 +519,19 @@ class RegimeFC:
             # Populate final columns
             self.df.loc[floor_ix_list[1:], flr] = floor_list[1:]
             self.df.loc[ceiling_ix_list[1:], clg] = ceiling_list[1:]
-            self.df.loc[rg_ch_ix_list, rg_ch] = rg_ch_list
-            self.df[rg_ch] = self.df[rg_ch].ffill()
-            self.df.loc[swing_max_ix:, rg] = np.where(ceiling_found,
-                                                 np.sign(self.df.loc[swing_max_ix:, _c].cummax() - rg_ch_list[-1]),
-                                                 np.where(floor_found,
-                                                          np.sign(self.df.loc[swing_max_ix:, _c].cummin() - rg_ch_list[-1]),
-                                                          np.sign(self.df.loc[swing_max_ix:, _c].rolling(5).mean() - rg_ch_list[-1])))
-            self.df[rg] = self.df[rg].ffill()
+            if rg_ch_list:
+                self.df.loc[rg_ch_ix_list, rg_ch] = rg_ch_list
+                self.df[rg_ch] = self.df[rg_ch].ffill()
+                self.df.loc[swing_max_ix:, rg] = np.where(ceiling_found,
+                                                     np.sign(self.df.loc[swing_max_ix:, _c].cummax() - rg_ch_list[-1]),
+                                                     np.where(floor_found,
+                                                              np.sign(self.df.loc[swing_max_ix:, _c].cummin() - rg_ch_list[-1]),
+                                                              np.sign(self.df.loc[swing_max_ix:, _c].rolling(5).mean() - rg_ch_list[-1])))
+                self.df[rg] = self.df[rg].ffill()
+            else:
+                self.logger.warning("No regime changes detected — insufficient swing volatility for threshold")
+                self.df[rg_ch] = np.nan
+                self.df[rg] = np.nan
 
             self.logger.info("regime_floor_ceiling completed")
             
