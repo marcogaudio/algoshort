@@ -465,6 +465,15 @@ class RegimeFC:
             swing_highs_ix = list(self.df.loc[pd.notnull(self.df[shi])].index)
             swing_lows = list(self.df.loc[pd.notnull(self.df[slo]), slo])
             swing_lows_ix = list(self.df.loc[pd.notnull(self.df[slo])].index)
+
+            if not swing_highs or not swing_lows:
+                self.logger.warning("No swing highs or lows found — skipping floor/ceiling regime analysis")
+                self.df[flr] = np.nan
+                self.df[clg] = np.nan
+                self.df[rg] = np.nan
+                self.df[rg_ch] = np.nan
+                return
+
             loop_size = max(len(swing_highs), len(swing_lows))
 
             for i in range(loop_size):
