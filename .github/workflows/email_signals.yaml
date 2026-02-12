@@ -34,78 +34,175 @@ jobs:
           # Pull latest results from the repository
           git pull origin main || true
 
-      - name: Run Italy analysis
-        id: italy_analysis
+      - name: Run analysis and export results
         run: |
-          echo "=== Italian Market Analysis ===" > analysis_output.txt
-          python analyze_results.py --market italy --export >> analysis_output.txt 2>&1
-
-          # Copy Italy results
+          python analyze_results.py --market italy --export 2>&1 || true
           cp results/italy/top_trades_recommendation.csv italy_top_trades.csv || true
 
-      - name: Run NASDAQ analysis
-        id: nasdaq_analysis
-        run: |
-          echo "" >> analysis_output.txt
-          echo "" >> analysis_output.txt
-          echo "=== NASDAQ Market Analysis ===" >> analysis_output.txt
-          python analyze_results.py --market nasdaq --export >> analysis_output.txt 2>&1
-
-          # Copy NASDAQ results
+          python analyze_results.py --market nasdaq --export 2>&1 || true
           cp results/nasdaq/top_trades_recommendation.csv nasdaq_top_trades.csv || true
 
-      - name: Create email body
+      - name: Build HTML email from results
         run: |
-          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S UTC')
-          cat << EOF > email_body.html
-          <!DOCTYPE html>
+          python3 << 'PYEOF'
+          import pandas as pd
+          import glob
+          import os
+          from datetime import datetime
+
+          CURRENT_DATE = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+          def load_market_data(market):
+              """Load top trades, consolidated equity, and consolidated signals for a market."""
+              results_dir = f"results/{market}"
+              top_trades = pd.DataFrame()
+              top_path = os.path.join(results_dir, "top_trades_recommendation.csv")
+              if os.path.exists(top_path):
+                  top_trades = pd.read_csv(top_path)
+
+              # Count tickers from individual equity files
+              equity_files = [f for f in glob.glob(f"{results_dir}/*_equity.csv") if "consolidated" not in f]
+              n_tickers = len(equity_files)
+
+              # Load signals for sentiment
+              signal_files = [f for f in glob.glob(f"{results_dir}/*_signals.csv") if "consolidated" not in f]
+              long_count = 0
+              short_count = 0
+              for sf in signal_files:
+                  try:
+                      df = pd.read_csv(sf)
+                      sig_cols = [c for c in df.columns if c not in ("date", "ticker")]
+                      for col in sig_cols:
+                          vals = df[col].dropna()
+                          long_count += (vals == 1).sum()
+                          short_count += (vals == -1).sum()
+                  except Exception:
+                      pass
+
+              return top_trades, n_tickers, long_count, short_count
+
+          def market_section(market_name, market_key, border_color):
+              top_trades, n_tickers, long_count, short_count = load_market_data(market_key)
+              total_signals = long_count + short_count
+
+              if total_signals > 0:
+                  long_pct = long_count / total_signals * 100
+                  short_pct = short_count / total_signals * 100
+                  if long_count > short_count:
+                      sentiment = "BULLISH"
+                      sentiment_color = "#00ff88"
+                  elif short_count > long_count:
+                      sentiment = "BEARISH"
+                      sentiment_color = "#ff6b6b"
+                  else:
+                      sentiment = "NEUTRAL"
+                      sentiment_color = "#ffcc00"
+              else:
+                  long_pct = short_pct = 0
+                  sentiment = "N/A"
+                  sentiment_color = "#888"
+
+              html = f"""
+              <div style="margin: 30px 0; padding: 20px; border: 2px solid {border_color}; border-radius: 10px;">
+                <h2 style="color: {border_color}; margin-top: 0;">{market_name}</h2>
+
+                <table style="border-collapse: collapse; width: 100%; margin-bottom: 20px;">
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #333; background-color: #16213e; color: #4ecca3; width: 25%;">Tickers Analyzed</td>
+                    <td style="padding: 8px; border: 1px solid #333;">{n_tickers}</td>
+                    <td style="padding: 8px; border: 1px solid #333; background-color: #16213e; color: #4ecca3; width: 25%;">Sentiment</td>
+                    <td style="padding: 8px; border: 1px solid #333; color: {sentiment_color}; font-weight: bold;">{sentiment}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #333; background-color: #16213e; color: #4ecca3;">LONG Signals</td>
+                    <td style="padding: 8px; border: 1px solid #333; color: #00ff88;">{long_count} ({long_pct:.1f}%)</td>
+                    <td style="padding: 8px; border: 1px solid #333; background-color: #16213e; color: #4ecca3;">SHORT Signals</td>
+                    <td style="padding: 8px; border: 1px solid #333; color: #ff6b6b;">{short_count} ({short_pct:.1f}%)</td>
+                  </tr>
+                </table>
+              """
+
+              if not top_trades.empty:
+                  html += """
+                  <h3 style="color: #ffcc00;">Top Recommended Trades</h3>
+                  <table style="border-collapse: collapse; width: 100%; font-size: 13px;">
+                    <tr style="background-color: #16213e;">
+                      <th style="padding: 10px; border: 1px solid #4ecca3; color: #4ecca3;">Rank</th>
+                      <th style="padding: 10px; border: 1px solid #4ecca3; color: #4ecca3;">Direction</th>
+                      <th style="padding: 10px; border: 1px solid #4ecca3; color: #4ecca3;">Ticker</th>
+                      <th style="padding: 10px; border: 1px solid #4ecca3; color: #4ecca3;">Strategy</th>
+                      <th style="padding: 10px; border: 1px solid #4ecca3; color: #4ecca3;">Return</th>
+                      <th style="padding: 10px; border: 1px solid #4ecca3; color: #4ecca3;">Max DD</th>
+                      <th style="padding: 10px; border: 1px solid #4ecca3; color: #4ecca3;">Score</th>
+                    </tr>
+                  """
+                  for i, row in top_trades.iterrows():
+                      rank = i + 1
+                      direction = row.get("Direction", "")
+                      dir_color = "#00ff88" if direction == "LONG" else "#ff6b6b"
+                      ticker = row.get("Ticker", "")
+                      signal = row.get("Signal", "")
+                      total_return = row.get("Total Return", 0)
+                      max_dd = row.get("Max Drawdown", 0)
+                      score = row.get("Composite_Score", 0)
+                      bg = "#1f1f3d" if rank % 2 == 0 else "#1a1a2e"
+
+                      html += f"""
+                    <tr style="background-color: {bg};">
+                      <td style="padding: 8px; border: 1px solid #333; text-align: center;">{rank}</td>
+                      <td style="padding: 8px; border: 1px solid #333; color: {dir_color}; font-weight: bold;">{direction}</td>
+                      <td style="padding: 8px; border: 1px solid #333; font-weight: bold;">{ticker}</td>
+                      <td style="padding: 8px; border: 1px solid #333;">{signal}</td>
+                      <td style="padding: 8px; border: 1px solid #333;">{total_return:+.2f}%</td>
+                      <td style="padding: 8px; border: 1px solid #333;">{max_dd:.2f}%</td>
+                      <td style="padding: 8px; border: 1px solid #333;">{score:.3f}</td>
+                    </tr>"""
+
+                  html += "\n              </table>"
+              else:
+                  html += '<p style="color: #888;">No trade recommendations available for this market.</p>'
+
+              html += "\n            </div>"
+              return html
+
+          # Build full email
+          italy_html = market_section("Italian Market (FTSE MIB)", "italy", "#00ff88")
+          nasdaq_html = market_section("NASDAQ (Top 100)", "nasdaq", "#ff6b6b")
+
+          email_html = f"""<!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: 'Courier New', monospace; background-color: #1a1a2e; color: #eaeaea; padding: 20px; }
-              .container { max-width: 900px; margin: 0 auto; }
-              h1 { color: #4ecca3; border-bottom: 2px solid #4ecca3; padding-bottom: 10px; }
-              h2 { color: #00d9ff; margin-top: 30px; }
-              .market-section { margin: 30px 0; padding: 20px; border: 1px solid #4ecca3; border-radius: 10px; }
-              .italy { border-color: #00ff88; }
-              .nasdaq { border-color: #ff6b6b; }
-              .signal-long { color: #00ff88; font-weight: bold; }
-              .signal-short { color: #ff6b6b; font-weight: bold; }
-              table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-              th, td { border: 1px solid #4ecca3; padding: 12px; text-align: left; }
-              th { background-color: #16213e; color: #4ecca3; }
-              tr:nth-child(even) { background-color: #1f1f3d; }
-              .disclaimer { font-size: 12px; color: #888; margin-top: 30px; padding: 15px; border: 1px solid #444; }
-              pre { background-color: #0f0f23; padding: 15px; overflow-x: auto; border-radius: 5px; font-size: 11px; }
-            </style>
+            <meta charset="utf-8">
           </head>
-          <body>
-            <div class="container">
-              <h1>Daily Trading Signals - Italy + NASDAQ</h1>
-              <p>Generated: ${CURRENT_DATE}</p>
+          <body style="font-family: 'Courier New', monospace; background-color: #1a1a2e; color: #eaeaea; padding: 20px; margin: 0;">
+            <div style="max-width: 900px; margin: 0 auto;">
+              <h1 style="color: #4ecca3; border-bottom: 2px solid #4ecca3; padding-bottom: 10px;">
+                Daily Trading Signals - Italy + NASDAQ
+              </h1>
+              <p style="color: #aaa;">Generated: {CURRENT_DATE}</p>
 
-              <h2>Analysis Report</h2>
-              <pre>
-          EOF
+              {italy_html}
 
-          cat analysis_output.txt >> email_body.html
+              {nasdaq_html}
 
-          cat << 'EOF' >> email_body.html
-              </pre>
-
-              <div class="disclaimer">
+              <div style="font-size: 12px; color: #888; margin-top: 30px; padding: 15px; border: 1px solid #444; border-radius: 5px;">
                 <strong>DISCLAIMER:</strong> This is an automated analysis based on historical data and technical indicators.
                 Past performance does not guarantee future results. Always do your own research and manage risk appropriately.
                 This is not financial advice.
               </div>
 
               <p style="color: #666; font-size: 11px; margin-top: 20px;">
-                Sent automatically by <a href="https://github.com/${{ github.repository }}" style="color: #4ecca3;">algoshort</a> GitHub Actions
+                Sent automatically by algoshort GitHub Actions
               </p>
             </div>
           </body>
-          </html>
-          EOF
+          </html>"""
+
+          with open("email_body.html", "w") as f:
+              f.write(email_html)
+
+          print("Email HTML generated successfully")
+          PYEOF
 
       - name: Send email
         uses: dawidd6/action-send-mail@v3
