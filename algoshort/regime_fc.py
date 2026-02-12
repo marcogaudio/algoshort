@@ -301,10 +301,17 @@ class RegimeFC:
             - hh_ll_dt: index of hh_ll
         """
         try:
-            shi_dt = self.df.loc[pd.notnull(self.df[shi]), shi].index[-1]
-            slo_dt = self.df.loc[pd.notnull(self.df[slo]), slo].index[-1]
-            s_hi = self.df.loc[pd.notnull(self.df[shi]), shi].iloc[-1]
-            s_lo = self.df.loc[pd.notnull(self.df[slo]), slo].iloc[-1]
+            shi_vals = self.df.loc[pd.notnull(self.df[shi]), shi]
+            slo_vals = self.df.loc[pd.notnull(self.df[slo]), slo]
+
+            if shi_vals.empty or slo_vals.empty:
+                self.logger.warning("No swing highs or lows found — returning neutral swing variables")
+                return 0, np.nan, np.nan, None, None, np.nan, None
+
+            shi_dt = shi_vals.index[-1]
+            slo_dt = slo_vals.index[-1]
+            s_hi = shi_vals.iloc[-1]
+            s_lo = slo_vals.iloc[-1]
 
             if slo_dt > shi_dt:
                 swg_var = [1, s_lo, slo_dt, rt_lo, shi, self.df.loc[slo_dt:, _h].max(), self.df.loc[slo_dt:, _h].idxmax()]
@@ -579,6 +586,10 @@ class RegimeFC:
             self._historical_swings(relative = relative, dist= None, hurdle= None)
             self._cleanup_latest_swing(shi, slo, rt_hi, rt_lo)
             ud, bs, bs_dt, _rt, _swg, hh_ll, hh_ll_dt = self._latest_swing_variables(shi, slo, rt_hi, rt_lo, _h, _l, _c)
+
+            if hh_ll_dt is None:
+                self.logger.warning("No swings found — skipping swing adjustments")
+                return
 
             vlty = round(self._average_true_range(_h, _l, _c, n=vlty_n).loc[hh_ll_dt], dgt)
             dist_vol = d_vol * vlty
