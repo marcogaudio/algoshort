@@ -2,8 +2,8 @@ name: Daily Trading Signals Email (Italy + NASDAQ)
 
 on:
   schedule:
-    # Run daily at 21:30 UTC (22:30 CET) - 30 min after analysis to ensure completion
-    - cron: '30 21 * * 1-5'  # Monday to Friday at 21:30 UTC (22:30 CET)
+    # Run daily at 22:00 UTC (23:00 CET) - 1 hour after analysis to ensure completion
+    - cron: '0 22 * * 1-5'  # Monday to Friday at 22:00 UTC (23:00 CET)
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
