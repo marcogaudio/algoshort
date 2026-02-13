@@ -1,120 +1,32 @@
-# Top 100 NASDAQ stocks by market cap
+# Top 25 NASDAQ stocks by market cap (diverse sectors)
 # Technology Giants
 AAPL
 MSFT
 GOOGL
-GOOG
 AMZN
 NVDA
 META
 TSLA
+# Semiconductors
 AVGO
-COST
-# Semiconductors & Hardware
-ASML
 AMD
 QCOM
-AMAT
-ADI
-LRCX
-MU
-KLAC
-MRVL
-SNPS
 # Software & Cloud
 ADBE
 CRM
 ORCL
-CSCO
-INTU
-PANW
-CDNS
-CRWD
-WDAY
-NOW
-# Internet & E-commerce
 NFLX
-PYPL
-ABNB
-BKNG
-MELI
-EBAY
-JD
-PDD
-CPRT
-DDOG
-# Communications
-TMUS
-CMCSA
-CHTR
-VOD
-LBRDK
-SIRI
 # Biotech & Healthcare
 AMGN
 GILD
 VRTX
-REGN
-ILMN
-MRNA
-BIIB
-DXCM
-IDXX
-ALGN
-# Financial Services
-INTC
-COIN
-HOOD
-LPLA
-MKTX
-NDAQ
 # Consumer & Retail
-SBUX
-LULU
-ROST
-DLTR
-ORLY
-PAYX
-ODFL
-FAST
-PCAR
-ADP
-# Food & Beverage
+COST
 PEP
-MDLZ
-MNST
-KDP
-KHC
-# Entertainment & Media
-WBD
-EA
-TTWO
-ROKU
-ZM
-# Electric Vehicles & Energy
-LCID
-RIVN
-FSLR
-ENPH
-# Other Technology
-AZN
-MCHP
-ON
-FTNT
-ZS
-TEAM
-OKTA
-CTSH
-TTD
-DOCU
-GEHC
-CSGP
-VRSK
-EXC
-XEL
-AEP
-WEC
-# Replacements for delisted: SPLK, ANSS, SGEN
-DASH
-NET
-SNOW
+SBUX
+# Communications
+TMUS
+CMCSA
+# Financial & Other
+COIN
+PYPL
