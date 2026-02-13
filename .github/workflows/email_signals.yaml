@@ -57,8 +57,11 @@ jobs:
               results_dir = f"results/{market}"
               top_trades = pd.DataFrame()
               top_path = os.path.join(results_dir, "top_trades_recommendation.csv")
-              if os.path.exists(top_path):
-                  top_trades = pd.read_csv(top_path)
+              if os.path.exists(top_path) and os.path.getsize(top_path) > 0:
+                  try:
+                      top_trades = pd.read_csv(top_path)
+                  except Exception:
+                      pass
 
               # Count tickers from individual equity files
               equity_files = [f for f in glob.glob(f"{results_dir}/*_equity.csv") if "consolidated" not in f]
@@ -70,6 +73,8 @@ jobs:
               short_count = 0
               for sf in signal_files:
                   try:
+                      if os.path.getsize(sf) == 0:
+                          continue
                       df = pd.read_csv(sf)
                       sig_cols = [c for c in df.columns if c not in ("date", "ticker")]
                       for col in sig_cols:
