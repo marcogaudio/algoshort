@@ -1,3 +1,3 @@
 ITALY Stock Analysis Summary
-Generated: 2026-02-13 21:07:16
-Tickers processed: 1
+Generated: 2026-02-13 22:04:43
+Tickers processed: 20
