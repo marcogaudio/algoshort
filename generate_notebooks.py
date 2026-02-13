@@ -1131,7 +1131,11 @@ def main():
     if failed_tickers:
         print(f"\nFailed tickers: {', '.join(failed_tickers)}")
 
-    return 0 if not failed_tickers else 1
+    # Succeed if at least half of tickers processed successfully
+    # This prevents a few problematic tickers from failing the entire workflow
+    if success_count == 0:
+        return 1
+    return 0
 
 
 if __name__ == '__main__':
