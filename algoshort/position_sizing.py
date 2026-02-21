@@ -45,11 +45,13 @@ class PositionSizing:
         self.initial_capital = initial_capital
 
     def eqty_risk_shares(self, px, sl, eqty, risk, fx, lot):
-        r = sl - px
+        r = abs(sl - px)          # stop distance — always positive regardless of direction
+        if r == 0:
+            return 0
         if fx > 0:
-            budget = eqty * risk * fx
+            budget = abs(eqty * risk * fx)   # dollar budget at risk — always positive
         else:
-            budget = eqty * risk
+            budget = abs(eqty * risk)
         shares = round(budget // (r * lot) * lot, 0)
         return shares
     

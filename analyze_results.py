@@ -94,17 +94,14 @@ def analyze_best_strategies(equity_df: pd.DataFrame) -> pd.DataFrame:
     # Rename columns for consistency
     equity_df.columns = [c.strip() for c in equity_df.columns]
 
-    # Only use equal_weight variant: concave/convex use leveraged position sizing whose
-    # sign convention is broken (negative risk params + compounding creates fake 52000%
-    # returns; constant goes negative). equal_weight is the only numerically stable variant.
-    equity_df = equity_df[equity_df["equity_signal"].str.endswith("_equity_equal")]
-
     # Calculate risk-adjusted return (Return / |Max Drawdown|)
     # Higher is better
     equity_df["Risk_Adjusted_Return"] = equity_df["Total Return"] / (abs(equity_df["Max Drawdown"]) + 0.01)
 
-    # Rank by risk-adjusted return
-    equity_df = equity_df.sort_values("Risk_Adjusted_Return", ascending=False)
+    # Keep best-performing position-sizing variant per ticker+combination
+    equity_df = (equity_df
+        .sort_values("Risk_Adjusted_Return", ascending=False)
+        .drop_duplicates(subset=["Ticker", "combination_name"], keep="first"))
 
     return equity_df
 
@@ -357,8 +354,12 @@ def print_summary_report(
     top_trades: pd.DataFrame
 ):
     """Print a formatted summary report."""
-    # Remove duplicates - keep only unique Ticker+Signal combinations
-    equity_df = equity_df.drop_duplicates(subset=["Ticker", "Signal"], keep="first")
+    # Keep best-performing variant per ticker+combination for display stats
+    _rar = equity_df["Total Return"] / (abs(equity_df["Max Drawdown"]) + 0.01)
+    equity_df = (equity_df.assign(_rar=_rar)
+        .sort_values("_rar", ascending=False)
+        .drop_duplicates(subset=["Ticker", "combination_name"], keep="first")
+        .drop(columns=["_rar"]))
 
     market_name = CURRENT_MARKET["name"] if CURRENT_MARKET else "Stock Market"
     print("=" * 80)
