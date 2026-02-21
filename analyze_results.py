@@ -94,10 +94,10 @@ def analyze_best_strategies(equity_df: pd.DataFrame) -> pd.DataFrame:
     # Rename columns for consistency
     equity_df.columns = [c.strip() for c in equity_df.columns]
 
-    # Remove duplicates - keep best-returning position-sizing variant per combination
-    equity_df = (equity_df
-        .sort_values("Total Return", ascending=False)
-        .drop_duplicates(subset=["Ticker", "combination_name"], keep="first"))
+    # Only use equal_weight variant: concave/convex use leveraged position sizing whose
+    # sign convention is broken (negative risk params + compounding creates fake 52000%
+    # returns; constant goes negative). equal_weight is the only numerically stable variant.
+    equity_df = equity_df[equity_df["equity_signal"].str.endswith("_equity_equal")]
 
     # Calculate risk-adjusted return (Return / |Max Drawdown|)
     # Higher is better
