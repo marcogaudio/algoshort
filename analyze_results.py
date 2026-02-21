@@ -94,8 +94,10 @@ def analyze_best_strategies(equity_df: pd.DataFrame) -> pd.DataFrame:
     # Rename columns for consistency
     equity_df.columns = [c.strip() for c in equity_df.columns]
 
-    # Remove duplicates - keep only unique Ticker+Signal combinations
-    equity_df = equity_df.drop_duplicates(subset=["Ticker", "Signal"], keep="first")
+    # Remove duplicates - keep best-returning position-sizing variant per combination
+    equity_df = (equity_df
+        .sort_values("Total Return", ascending=False)
+        .drop_duplicates(subset=["Ticker", "combination_name"], keep="first"))
 
     # Calculate risk-adjusted return (Return / |Max Drawdown|)
     # Higher is better
@@ -158,13 +160,15 @@ def calculate_composite_score(
         return pd.DataFrame()
 
     # Merge equity with active signals
-    # equity_df has: Ticker, Signal, Final Equity, Total Return, Max Drawdown
-    # active_signals has: ticker, Signal, Position, Direction
+    # equity_df has: Ticker, combination_name, Final Equity, Total Return, Max Drawdown
+    # active_signals has: ticker, Signal (=combination_name), Position, Direction
+    # Drop redundant Signal column from equity_df to avoid Signal_x/Signal_y clash
+    equity_for_merge = equity_df.drop(columns=["Signal"], errors="ignore")
 
     merged = pd.merge(
-        equity_df,
+        equity_for_merge,
         active_signals,
-        left_on=["Ticker", "Signal"],
+        left_on=["Ticker", "combination_name"],
         right_on=["ticker", "Signal"],
         how="inner"
     )
@@ -172,8 +176,8 @@ def calculate_composite_score(
     if merged.empty:
         return pd.DataFrame()
 
-    # Remove duplicates - keep only unique Ticker+Signal combinations
-    merged = merged.drop_duplicates(subset=["Ticker", "Signal"], keep="first")
+    # Remove duplicates - keep only unique Ticker+combination_name combinations
+    merged = merged.drop_duplicates(subset=["Ticker", "combination_name"], keep="first")
 
     # Calculate composite score
     # Normalize each factor to 0-1 range
